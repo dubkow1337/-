@@ -1,0 +1,1984 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Signature AI Analyzer — Анализатор подписей</title>
+<style>
+:root {
+  --bg: #0a0a12;
+  --card: #12121e;
+  --card2: #1a1a2e;
+  --accent: #7c5cfc;
+  --accent2: #00d4aa;
+  --accent3: #ff6b6b;
+  --text: #e8e8f0;
+  --text2: #8888a0;
+  --border: #2a2a40;
+  --success: #00b894;
+  --warning: #fdcb6e;
+  --grad1: linear-gradient(135deg, #7c5cfc, #00d4aa);
+  --grad2: linear-gradient(135deg, #7c5cfc, #ff6b6b);
+  --shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+body::before {
+  content:'';
+  position:fixed;
+  top:-50%; left:-50%;
+  width:200%; height:200%;
+  background: radial-gradient(circle at 20% 50%, rgba(124,92,252,0.06) 0%, transparent 50%),
+              radial-gradient(circle at 80% 20%, rgba(0,212,170,0.04) 0%, transparent 50%),
+              radial-gradient(circle at 50% 80%, rgba(255,107,107,0.03) 0%, transparent 50%);
+  z-index:-1;
+  animation: bgFloat 20s ease-in-out infinite;
+}
+@keyframes bgFloat {
+  0%,100% { transform: translate(0,0) rotate(0deg); }
+  33% { transform: translate(2%,-2%) rotate(1deg); }
+  66% { transform: translate(-1%,1%) rotate(-1deg); }
+}
+::-webkit-scrollbar { width:6px; }
+::-webkit-scrollbar-track { background:var(--bg); }
+::-webkit-scrollbar-thumb { background:var(--accent); border-radius:3px; }
+
+.header {
+  text-align:center;
+  padding:40px 20px 30px;
+  position:relative;
+}
+.header h1 {
+  font-size:clamp(1.8rem, 4vw, 3rem);
+  background: var(--grad1);
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+  background-clip:text;
+  font-weight:800;
+  letter-spacing:-1px;
+}
+.header .subtitle {
+  color:var(--text2);
+  font-size:1.1rem;
+  margin-top:8px;
+  max-width:600px;
+  margin-left:auto;
+  margin-right:auto;
+}
+.header .badge {
+  display:inline-block;
+  padding:6px 16px;
+  background:rgba(124,92,252,0.15);
+  border:1px solid rgba(124,92,252,0.3);
+  border-radius:20px;
+  color:var(--accent);
+  font-size:0.85rem;
+  margin-top:12px;
+}
+
+.container {
+  max-width:1400px;
+  margin:0 auto;
+  padding:0 20px 60px;
+}
+
+.tabs {
+  display:flex;
+  gap:6px;
+  background:var(--card);
+  padding:6px;
+  border-radius:16px;
+  margin-bottom:30px;
+  overflow-x:auto;
+  border:1px solid var(--border);
+}
+.tab {
+  flex:1;
+  min-width:140px;
+  padding:14px 20px;
+  border:none;
+  background:transparent;
+  color:var(--text2);
+  font-size:0.95rem;
+  font-weight:600;
+  cursor:pointer;
+  border-radius:12px;
+  transition:all 0.3s;
+  white-space:nowrap;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+}
+.tab:hover { color:var(--text); background:rgba(255,255,255,0.05); }
+.tab.active {
+  background:var(--accent);
+  color:#fff;
+  box-shadow:0 8px 30px rgba(124,92,252,0.3);
+}
+.tab .icon { font-size:1.2rem; }
+
+.panel {
+  display:none;
+  animation: fadeUp 0.5s ease;
+}
+.panel.active { display:block; }
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(20px); }
+  to { opacity:1; transform:translateY(0); }
+}
+
+.card {
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:20px;
+  padding:30px;
+  margin-bottom:20px;
+  transition:all 0.3s;
+}
+.card:hover {
+  border-color:rgba(124,92,252,0.3);
+}
+.card-title {
+  font-size:1.3rem;
+  font-weight:700;
+  margin-bottom:20px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+.card-title .dot {
+  width:10px;
+  height:10px;
+  border-radius:50%;
+  background:var(--grad1);
+  flex-shrink:0;
+}
+
+.upload-zone {
+  border:2px dashed var(--border);
+  border-radius:20px;
+  padding:60px 30px;
+  text-align:center;
+  cursor:pointer;
+  transition:all 0.3s;
+  position:relative;
+  overflow:hidden;
+}
+.upload-zone:hover, .upload-zone.dragover {
+  border-color:var(--accent);
+  background:rgba(124,92,252,0.05);
+}
+.upload-zone .upload-icon {
+  font-size:4rem;
+  margin-bottom:16px;
+  display:block;
+}
+.upload-zone .upload-text {
+  font-size:1.2rem;
+  color:var(--text2);
+  margin-bottom:8px;
+}
+.upload-zone .upload-hint {
+  font-size:0.85rem;
+  color:var(--text2);
+  opacity:0.6;
+}
+.upload-zone input[type="file"] {
+  position:absolute;
+  inset:0;
+  opacity:0;
+  cursor:pointer;
+}
+
+.canvas-wrap {
+  position:relative;
+  background:#fff;
+  border-radius:16px;
+  overflow:hidden;
+  margin:20px 0;
+}
+.canvas-wrap canvas {
+  width:100%;
+  height:auto;
+  display:block;
+}
+.canvas-wrap .canvas-label {
+  position:absolute;
+  top:12px;
+  left:12px;
+  background:rgba(0,0,0,0.7);
+  color:#fff;
+  padding:6px 14px;
+  border-radius:8px;
+  font-size:0.85rem;
+  font-weight:600;
+}
+.canvas-wrap.checker {
+  background: repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%) 50%/20px 20px;
+}
+
+.grid-2 {
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(350px, 1fr));
+  gap:20px;
+}
+.grid-3 {
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));
+  gap:20px;
+}
+.grid-4 {
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));
+  gap:16px;
+}
+
+.metric-card {
+  background:var(--card2);
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:24px;
+  text-align:center;
+  transition:all 0.3s;
+}
+.metric-card:hover {
+  transform:translateY(-3px);
+  border-color:rgba(124,92,252,0.3);
+}
+.metric-card .metric-value {
+  font-size:2.5rem;
+  font-weight:800;
+  background:var(--grad1);
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+  background-clip:text;
+}
+.metric-card .metric-label {
+  color:var(--text2);
+  font-size:0.9rem;
+  margin-top:6px;
+}
+.metric-card .metric-icon {
+  font-size:2rem;
+  margin-bottom:10px;
+}
+
+.progress-container {
+  background:var(--card2);
+  border-radius:12px;
+  height:12px;
+  overflow:hidden;
+  margin:8px 0;
+}
+.progress-bar {
+  height:100%;
+  background:var(--grad1);
+  border-radius:12px;
+  transition:width 0.8s ease;
+  position:relative;
+}
+.progress-bar::after {
+  content:'';
+  position:absolute;
+  inset:0;
+  background:linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  animation:shimmer 2s infinite;
+}
+@keyframes shimmer {
+  0% { transform:translateX(-100%); }
+  100% { transform:translateX(100%); }
+}
+
+.analysis-report {
+  background:var(--card2);
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:28px;
+}
+.analysis-report .report-line {
+  padding:12px 0;
+  border-bottom:1px solid rgba(255,255,255,0.05);
+  display:flex;
+  gap:12px;
+  align-items:flex-start;
+  animation: fadeUp 0.5s ease forwards;
+  opacity:0;
+}
+.analysis-report .report-line:last-child { border-bottom:none; }
+.analysis-report .report-line .r-icon {
+  font-size:1.3rem;
+  flex-shrink:0;
+  width:32px;
+  text-align:center;
+}
+.analysis-report .report-line .r-text {
+  line-height:1.6;
+}
+.analysis-report .report-line .r-text strong {
+  color:var(--accent2);
+}
+
+.btn {
+  padding:14px 28px;
+  border:none;
+  border-radius:12px;
+  font-size:1rem;
+  font-weight:600;
+  cursor:pointer;
+  transition:all 0.3s;
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+}
+.btn-primary {
+  background:var(--grad1);
+  color:#fff;
+  box-shadow:0 8px 30px rgba(124,92,252,0.3);
+}
+.btn-primary:hover {
+  transform:translateY(-2px);
+  box-shadow:0 12px 40px rgba(124,92,252,0.4);
+}
+.btn-secondary {
+  background:var(--card2);
+  color:var(--text);
+  border:1px solid var(--border);
+}
+.btn-secondary:hover {
+  border-color:var(--accent);
+  background:rgba(124,92,252,0.1);
+}
+.btn-danger {
+  background:rgba(255,107,107,0.15);
+  color:var(--accent3);
+  border:1px solid rgba(255,107,107,0.3);
+}
+.btn-danger:hover {
+  background:rgba(255,107,107,0.25);
+}
+.btn-group {
+  display:flex;
+  gap:12px;
+  flex-wrap:wrap;
+  margin-top:20px;
+}
+
+.slider-group {
+  margin:16px 0;
+}
+.slider-group label {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  color:var(--text2);
+  font-size:0.9rem;
+  margin-bottom:8px;
+}
+.slider-group label span {
+  color:var(--accent);
+  font-weight:700;
+  min-width:50px;
+  text-align:right;
+}
+input[type="range"] {
+  width:100%;
+  -webkit-appearance:none;
+  appearance:none;
+  height:6px;
+  background:var(--border);
+  border-radius:3px;
+  outline:none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance:none;
+  appearance:none;
+  width:22px;
+  height:22px;
+  background:var(--accent);
+  border-radius:50%;
+  cursor:pointer;
+  box-shadow:0 4px 15px rgba(124,92,252,0.4);
+}
+
+/* Document Editor */
+.doc-page {
+  background:#fff;
+  color:#222;
+  border-radius:8px;
+  padding:50px;
+  max-width:800px;
+  margin:0 auto;
+  position:relative;
+  min-height:600px;
+  box-shadow:var(--shadow);
+}
+.doc-page .doc-header {
+  text-align:center;
+  margin-bottom:30px;
+  padding-bottom:20px;
+  border-bottom:2px solid #eee;
+}
+.doc-page .doc-header h2 {
+  font-size:1.5rem;
+  color:#222;
+  font-weight:700;
+}
+.doc-page .doc-header .doc-sub {
+  color:#888;
+  font-size:0.95rem;
+  margin-top:4px;
+}
+.doc-page .doc-body {
+  line-height:1.8;
+  font-size:1rem;
+}
+.doc-page .doc-body p {
+  margin-bottom:12px;
+}
+.doc-page .doc-body [contenteditable] {
+  outline:none;
+  border-bottom:1px dashed #ddd;
+  padding-bottom:2px;
+}
+.doc-page .doc-body [contenteditable]:focus {
+  border-bottom-color:var(--accent);
+  background:rgba(124,92,252,0.05);
+}
+.doc-page .doc-line {
+  margin:12px 0;
+}
+.doc-page .doc-line label {
+  display:block;
+  color:#666;
+  font-size:0.85rem;
+  margin-bottom:4px;
+}
+.doc-page .doc-line input, .doc-page .doc-line textarea {
+  width:100%;
+  border:none;
+  border-bottom:1px solid #ddd;
+  padding:8px 0;
+  font-size:1rem;
+  background:transparent;
+  color:#222;
+  outline:none;
+}
+.doc-page .doc-line input:focus, .doc-page .doc-line textarea:focus {
+  border-bottom-color:var(--accent);
+}
+.doc-page .signature-area {
+  position:relative;
+  min-height:120px;
+  border-bottom:1px solid #999;
+  margin-top:40px;
+}
+.doc-page .signature-area .sig-label {
+  position:absolute;
+  bottom:-25px;
+  left:0;
+  color:#999;
+  font-size:0.85rem;
+}
+.doc-page .doc-footer {
+  margin-top:50px;
+  display:flex;
+  justify-content:space-between;
+  font-size:0.85rem;
+  color:#999;
+}
+.doc-page .placed-sig {
+  position:absolute;
+  cursor:grab;
+  user-select:none;
+  transition:filter 0.2s;
+}
+.doc-page .placed-sig:hover {
+  filter:drop-shadow(0 4px 15px rgba(0,0,0,0.2));
+}
+.doc-page .placed-sig.dragging {
+  cursor:grabbing;
+  opacity:0.8;
+}
+
+/* Loading overlay */
+.loading-overlay {
+  position:fixed;
+  inset:0;
+  background:rgba(10,10,18,0.9);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  z-index:1000;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity 0.3s;
+}
+.loading-overlay.show {
+  opacity:1;
+  pointer-events:all;
+}
+.loading-spinner {
+  width:80px;
+  height:80px;
+  border:4px solid var(--border);
+  border-top-color:var(--accent);
+  border-radius:50%;
+  animation:spin 1s linear infinite;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+.loading-text {
+  margin-top:20px;
+  font-size:1.2rem;
+  color:var(--text2);
+}
+.loading-sub {
+  margin-top:8px;
+  font-size:0.95rem;
+  color:var(--accent);
+}
+
+/* Radar Chart */
+.radar-chart {
+  width:100%;
+  max-width:400px;
+  margin:0 auto;
+}
+.radar-chart svg {
+  width:100%;
+  height:auto;
+}
+
+/* Color swatches */
+.color-swatch {
+  width:32px;
+  height:32px;
+  border-radius:8px;
+  border:2px solid var(--border);
+  display:inline-block;
+  margin:2px;
+}
+
+/* Tooltip */
+.tooltip {
+  position:relative;
+}
+.tooltip::after {
+  content:attr(data-tip);
+  position:absolute;
+  bottom:calc(100% + 8px);
+  left:50%;
+  transform:translateX(-50%);
+  background:var(--card2);
+  color:var(--text);
+  padding:8px 14px;
+  border-radius:8px;
+  font-size:0.85rem;
+  white-space:nowrap;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity 0.3s;
+  border:1px solid var(--border);
+  z-index:10;
+}
+.tooltip:hover::after { opacity:1; }
+
+/* Style tags */
+.style-tag {
+  display:inline-block;
+  padding:8px 18px;
+  border-radius:20px;
+  font-size:0.9rem;
+  font-weight:600;
+  margin:4px;
+}
+.style-tag.purple {
+  background:rgba(124,92,252,0.15);
+  color:var(--accent);
+  border:1px solid rgba(124,92,252,0.3);
+}
+.style-tag.teal {
+  background:rgba(0,212,170,0.15);
+  color:var(--accent2);
+  border:1px solid rgba(0,212,170,0.3);
+}
+.style-tag.red {
+  background:rgba(255,107,107,0.15);
+  color:var(--accent3);
+  border:1px solid rgba(255,107,107,0.3);
+}
+.style-tag.yellow {
+  background:rgba(253,203,110,0.15);
+  color:var(--warning);
+  border:1px solid rgba(253,203,110,0.3);
+}
+
+textarea.doc-textarea {
+  width:100%;
+  min-height:200px;
+  background:var(--card2);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:16px;
+  color:var(--text);
+  font-family:inherit;
+  font-size:1rem;
+  resize:vertical;
+  outline:none;
+}
+textarea.doc-textarea:focus {
+  border-color:var(--accent);
+}
+
+/* Responsive */
+@media (max-width:768px) {
+  .grid-2, .grid-3, .grid-4 {
+    grid-template-columns:1fr;
+  }
+  .doc-page {
+    padding:25px;
+  }
+  .tabs {
+    padding:4px;
+  }
+  .tab {
+    padding:10px 14px;
+    font-size:0.85rem;
+    min-width:100px;
+  }
+  .btn {
+    padding:12px 20px;
+    font-size:0.9rem;
+  }
+}
+
+/* Animation for analysis lines */
+.report-line:nth-child(1) { animation-delay:0.1s; }
+.report-line:nth-child(2) { animation-delay:0.2s; }
+.report-line:nth-child(3) { animation-delay:0.3s; }
+.report-line:nth-child(4) { animation-delay:0.4s; }
+.report-line:nth-child(5) { animation-delay:0.5s; }
+.report-line:nth-child(6) { animation-delay:0.6s; }
+.report-line:nth-child(7) { animation-delay:0.7s; }
+.report-line:nth-child(8) { animation-delay:0.8s; }
+.report-line:nth-child(9) { animation-delay:0.9s; }
+.report-line:nth-child(10) { animation-delay:1.0s; }
+
+.hidden { display:none !important; }
+
+.footnote {
+  text-align:center;
+  color:var(--text2);
+  font-size:0.85rem;
+  margin-top:40px;
+  padding:20px;
+  border-top:1px solid var(--border);
+}
+.footnote a {
+  color:var(--accent);
+  text-decoration:none;
+}
+</style>
+</head>
+<body>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text" id="loadingText">Анализ подписи...</div>
+  <div class="loading-sub" id="loadingSub">Инициализация нейросети</div>
+</div>
+
+<!-- Header -->
+<div class="header">
+  <h1>✍️ Signature AI Analyzer</h1>
+  <p class="subtitle">Интеллектуальный анализ подписей с помощью компьютерного зрения. Загрузите снимок подписи — ИИ изучит её до мельчайших деталей.</p>
+  <div class="badge">🧠 Computer Vision • 📊 Deep Analysis • 🔗 Local Processing</div>
+</div>
+
+<div class="container">
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('upload')">
+      <span class="icon">📤</span> Загрузка
+    </button>
+    <button class="tab" onclick="switchTab('analysis')">
+      <span class="icon">🔬</span> Анализ
+    </button>
+    <button class="tab" onclick="switchTab('extract')">
+      <span class="icon">✂️</span> Извлечение
+    </button>
+    <button class="tab" onclick="switchTab('document')">
+      <span class="icon">📄</span> Документ
+    </button>
+    <button class="tab" onclick="switchTab('ai')">
+      <span class="icon">🤖</span> ИИ-Отчёт
+    </button>
+  </div>
+
+  <!-- ========== PANEL: UPLOAD ========== -->
+  <div class="panel active" id="panel-upload">
+    <div class="card">
+      <div class="card-title"><div class="dot"></div>Загрузите снимок подписи</div>
+      <div class="upload-zone" id="uploadZone">
+        <span class="upload-icon">🖼️</span>
+        <div class="upload-text">Перетащите изображение сюда или нажмите для выбора</div>
+        <div class="upload-hint">Поддерживаются: JPG, PNG, BMP, WEBP • Рекомендуемый размер: 800×400 px</div>
+        <input type="file" id="fileInput" accept="image/*">
+      </div>
+      <div id="originalPreview" class="hidden">
+        <div class="canvas-wrap">
+          <div class="canvas-label">Оригинал</div>
+          <canvas id="originalCanvas"></canvas>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-primary" onclick="startAnalysis()">
+            🧠 Запустить ИИ-анализ
+          </button>
+          <button class="btn btn-secondary" onclick="resetAll()">
+            🔄 Сбросить
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick stats -->
+    <div class="card hidden" id="quickStats">
+      <div class="card-title"><div class="dot"></div>Быстрые характеристики</div>
+      <div class="grid-4">
+        <div class="metric-card">
+          <div class="metric-icon">📐</div>
+          <div class="metric-value" id="qsWidth">—</div>
+          <div class="metric-label">Ширина подписи</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon">📏</div>
+          <div class="metric-value" id="qsHeight">—</div>
+          <div class="metric-label">Высота подписи</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon">🖊️</div>
+          <div class="metric-value" id="qsStrokes">—</div>
+          <div class="metric-label">Штрихов</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon">💎</div>
+          <div class="metric-value" id="qsComplexity">—</div>
+          <div class="metric-label">Сложность</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== PANEL: ANALYSIS ========== -->
+  <div class="panel" id="panel-analysis">
+    <div class="grid-2">
+      <!-- Binary -->
+      <div class="card">
+        <div class="card-title"><div class="dot"></div>Бинаризация (чёрно-белый)</div>
+        <div class="canvas-wrap">
+          <div class="canvas-label">Binary Image</div>
+          <canvas id="binaryCanvas"></canvas>
+        </div>
+      </div>
+      <!-- Heatmap -->
+      <div class="card">
+        <div class="card-title"><div class="dot"></div>Тепловая карта плотности</div>
+        <div class="canvas-wrap">
+          <div class="canvas-label">Ink Density</div>
+          <canvas id="heatmapCanvas"></canvas>
+        </div>
+      </div>
+      <!-- Stroke Direction -->
+      <div class="card">
+        <div class="card-title"><div class="dot"></div>Направление штрихов</div>
+        <div class="canvas-wrap">
+          <div class="canvas-label">Stroke Direction</div>
+          <canvas id="strokeCanvas"></canvas>
+        </div>
+      </div>
+      <!-- Edges -->
+      <div class="card">
+        <div class="card-title"><div class="dot"></div>Детекция контуров (Sobel)</div>
+        <div class="canvas-wrap">
+          <div class="canvas-label">Edge Detection</div>
+          <canvas id="edgeCanvas"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Metrics -->
+    <div class="card">
+      <div class="card-title"><div class="dot"></div>Метрики анализа</div>
+      <div class="grid-4">
+        <div class="metric-card">
+          <div class="metric-icon">🎯</div>
+          <div class="metric-value" id="mInkDensity">—</div>
+          <div class="metric-label">Плотность чернил</div>
+          <div class="progress-container"><div class="progress-bar" id="pInkDensity" style="width:0%"></div></div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon">⚖️</div>
+          <div class="metric-value" id="mPressure">—</div>
+          <div class="metric-label">Среднее давление</div>
+          <div class="progress-container"><div class="progress-bar" id="pPressure" style="width:0%"></div></div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon">🔀</div>
+          <div class="metric-value" id="mSlant">—</div>
+          <div class="metric-label">Наклон</div>
+          <div class="progress-container"><div class="progress-bar" id="pSlant" style="width:0%"></div></div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon">🌀</div>
+          <div class="metric-value" id="mCurvature">—</div>
+          <div class="metric-label">Кривизна</div>
+          <div class="progress-container"><div class="progress-bar" id="pCurvature" style="width:0%"></div></div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon">📊</div>
+          <div class="metric-value" id="mSymmetry">—</div>
+          <div class="metric-label">Симметрия</div>
+          <div class="progress-container"><div class="progress-bar" id="pSymmetry" style="width:0%"></div></div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon">🎪</div>
+          <div class="metric-value" id="mIntersections">—</div>
+          <div class="metric-label">Пересечения</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon">🔄</div>
+          <div class="metric-value" id="mLoops">—</div>
+          <div class="metric-label">Петли</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon">⚡</div>
+          <div class="metric-value" id="mSpeed">—</div>
+          <div class="metric-label">Оценка скорости</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Style Classification -->
+    <div class="card">
+      <div class="card-title"><div class="dot"></div>Классификация стиля</div>
+      <div id="styleTags">
+        <span class="style-tag purple">Классификация...</span>
+      </div>
+      <div style="margin-top:20px" class="slider-group">
+        <label>Уверенность классификации <span id="confidenceVal">—</span></label>
+        <div class="progress-container"><div class="progress-bar" id="confidenceBar" style="width:0%"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== PANEL: EXTRACT ========== -->
+  <div class="panel" id="panel-extract">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title"><div class="dot"></div>Извлечённая подпись</div>
+        <div class="canvas-wrap checker">
+          <div class="canvas-label">Transparent PNG</div>
+          <canvas id="extractCanvas"></canvas>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-primary" onclick="downloadSignature()">📥 Скачать PNG</button>
+          <button class="btn btn-secondary" onclick="copySignature()">📋 Копировать</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title"><div class="dot"></div>Настройки извлечения</div>
+        <div class="slider-group">
+          <label>Порог удаления фона <span id="thresholdVal">200</span></label>
+          <input type="range" id="thresholdSlider" min="100" max="255" value="200" oninput="updateThreshold(this.value)">
+        </div>
+        <div class="slider-group">
+          <label>Размытие краёв <span id="blurVal">1</span></label>
+          <input type="range" id="blurSlider" min="0" max="5" value="1" oninput="updateBlur(this.value)">
+        </div>
+        <div class="slider-group">
+          <label>Контраст <span id="contrastVal">100</span>%</label>
+          <input type="range" id="contrastSlider" min="50" max="200" value="100" oninput="updateContrast(this.value)">
+        </div>
+        <div class="slider-group">
+          <label>Усиление краёв <span id="sharpenVal">0</span></label>
+          <input type="range" id="sharpenSlider" min="0" max="100" value="0" oninput="updateSharpen(this.value)">
+        </div>
+        <div style="margin-top:20px">
+          <div class="card-title" style="font-size:1rem; margin-bottom:12px"><div class="dot"></div>Цвет чернил</div>
+          <input type="color" id="inkColor" value="#000000" onchange="updateInkColor(this.value)" style="width:60px; height:40px; border:none; background:none; cursor:pointer;">
+          <label style="margin-left:10px; color:var(--text2)">Заменить цвет подписи</label>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-secondary" onclick="resetExtraction()">🔄 Сбросить</button>
+          <button class="btn btn-primary" onclick="applyExtraction()">✅ Применить</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== PANEL: DOCUMENT ========== -->
+  <div class="panel" id="panel-document">
+    <div class="card">
+      <div class="card-title"><div class="dot"></div>Редактор документа</div>
+      <p style="color:var(--text2); margin-bottom:20px;">Вставьте извлечённую подпись в документ. Перетащите подпись в нужное место.</p>
+      <div class="btn-group" style="margin-top:0; margin-bottom:20px">
+        <button class="btn btn-primary" onclick="insertSignature()">📎 Вставить подпись</button>
+        <button class="btn btn-secondary" onclick="clearSignatures()">🗑️ Очистить подписи</button>
+        <button class="btn btn-secondary" onclick="exportDocument()">📄 Экспорт</button>
+        <button class="btn btn-secondary" onclick="printDocument()">🖨️ Печать</button>
+      </div>
+
+      <div class="doc-page" id="docPage">
+        <div class="doc-header">
+          <h2 contenteditable="true">ЗАЯВЛЕНИЕ</h2>
+          <div class="doc-sub contenteditable" contenteditable="true">О согласии на обработку персональных данных</div>
+        </div>
+        <div class="doc-body">
+          <p>Настоящим я, <input type="text" placeholder="Фамилия Имя Отчество" style="width:100%; border:none; border-bottom:1px solid #ddd; padding:4px 0; font-size:1rem; background:transparent; outline:none; color:#222;">, проживающий(-ая) по адресу:</p>
+          <p><input type="text" placeholder="Адрес" style="width:100%; border:none; border-bottom:1px solid #ddd; padding:4px 0; font-size:1rem; background:transparent; outline:none; color:#222;"></p>
+          <p>Даю своё согласие на обработку моих персональных данных в соответствии с Федеральным законом «О персональных данных».</p>
+          <p>Перечень персональных данных, на обработку которых даётся согласие:</p>
+          <p style="margin-left:30px;">— Фамилия, имя, отчество</p>
+          <p style="margin-left:30px;">— Контактная информация</p>
+          <p style="margin-left:30px;">— Иные данные, необходимые для предоставления услуг</p>
+          <p>Срок действия настоящего согласия: бессрочно.</p>
+          <div style="display:flex; justify-content:space-between; margin-top:40px; gap:30px;">
+            <div style="flex:1">
+              <div class="doc-line">
+                <label>Дата</label>
+                <input type="text" placeholder="ДД.ММ.ГГГГ" id="docDate">
+              </div>
+            </div>
+            <div style="flex:1">
+              <div class="doc-line">
+                <label>Подпись</label>
+                <div class="signature-area" id="sigArea">
+                  <!-- Signature will be placed here -->
+                </div>
+                <div class="sig-label">/ ФИО /</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="doc-footer">
+          <span>Документ №12345</span>
+          <span>Страница 1 из 1</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== PANEL: AI REPORT ========== -->
+  <div class="panel" id="panel-ai">
+    <div class="card">
+      <div class="card-title"><div class="dot"></div>🤖 ИИ-Отчёт анализа подписи</div>
+      <div class="analysis-report" id="aiReport">
+        <div class="report-line">
+          <div class="r-icon">⏳</div>
+          <div class="r-text">Загрузите изображение и запустите анализ для получения отчёта...</div>
+        </div>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="downloadReport()">📥 Скачать отчёт</button>
+        <button class="btn btn-secondary" onclick="copyReport()">📋 Копировать текст</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><div class="dot"></div>🔍 Методология анализа</div>
+      <div class="analysis-report">
+        <div class="report-line" style="opacity:1; animation:none;">
+          <div class="r-icon">1️⃣</div>
+          <div class="r-text"><strong>Предварительная обработка:</strong> Конвертация в оттенки серого, адаптивная бинаризация методом Оцу, удаление шумов медианным фильтром.</div>
+        </div>
+        <div class="report-line" style="opacity:1; animation:none;">
+          <div class="r-icon">2️⃣</div>
+          <div class="r-text"><strong>Выделение подписи:</strong> Поиск границ через анализ компонент связности, выделение bounding box, отделение от фона.</div>
+        </div>
+        <div class="report-line" style="opacity:1; animation:none;">
+          <div class="r-icon">3️⃣</div>
+          <div class="r-text"><strong>Анализ штрихов:</strong> Трассировка направления штрихов через градиентный оператор Собеля, оценка давления по толщине линий, анализ кривизны.</div>
+        </div>
+        <div class="report-line" style="opacity:1; animation:none;">
+          <div class="r-icon">4️⃣</div>
+          <div class="r-text"><strong>Классификация:</strong> Определение стиля написания (курсив/печатный/смешанный), анализ наклона, оценка сложности и уникальности.</div>
+        </div>
+        <div class="report-line" style="opacity:1; animation:none;">
+          <div class="r-icon">5️⃣</div>
+          <div class="r-text"><strong>Извлечение:</strong> Удаление фона, сглаживание краёв, формирование прозрачного PNG для вставки в документы.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footnote">
+    Signature AI Analyzer v2.0 • Обработка выполняется локально в браузере<br>
+    🧠 Computer Vision • 📊 Image Processing • 🔒 Данные не покидают ваше устройство
+  </div>
+</div>
+
+<script>
+// ==================== GLOBALS ====================
+let originalImageData = null;
+let analysisResults = null;
+let extractedImageData = null;
+let sigElements = [];
+
+// ==================== TAB SWITCHING ====================
+function switchTab(tabName) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-' + tabName).classList.add('active');
+  event.target.closest('.tab').classList.add('active');
+}
+
+// ==================== UPLOAD ====================
+const uploadZone = document.getElementById('uploadZone');
+const fileInput = document.getElementById('fileInput');
+
+uploadZone.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  uploadZone.classList.add('dragover');
+});
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+uploadZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  uploadZone.classList.remove('dragover');
+  if (e.dataTransfer.files.length) loadImage(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', (e) => {
+  if (e.target.files.length) loadImage(e.target.files[0]);
+});
+
+function loadImage(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.getElementById('originalCanvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      originalImageData = ctx.getImageData(0, 0, img.width, img.height);
+      document.getElementById('originalPreview').classList.remove('hidden');
+      document.getElementById('quickStats').classList.remove('hidden');
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function resetAll() {
+  originalImageData = null;
+  analysisResults = null;
+  extractedImageData = null;
+  document.getElementById('originalPreview').classList.add('hidden');
+  document.getElementById('quickStats').classList.add('hidden');
+  fileInput.value = '';
+}
+
+// ==================== ANALYSIS ====================
+function startAnalysis() {
+  if (!originalImageData) return;
+  
+  showLoading('Анализ подписи...', 'Инициализация нейросети');
+  
+  setTimeout(() => {
+    setLoadingSub('Предварительная обработка изображения');
+    const w = originalImageData.width;
+    const h = originalImageData.height;
+    
+    // 1. Grayscale
+    const gray = toGrayscale(originalImageData);
+    setLoadingSub('Бинаризация (метод Оцу)');
+    
+    // 2. Binarize
+    const threshold = otsuThreshold(gray, w, h);
+    const binary = binarize(gray, w, h, threshold);
+    setLoadingSub('Поиск компонент связности');
+    
+    // 3. Find bounding box
+    const bbox = findBoundingBox(binary, w, h);
+    setLoadingSub('Анализ штрихов и форм');
+    
+    // 4. Connected components
+    const components = findComponents(binary, w, h);
+    
+    // 5. Calculate metrics
+    const inkDensity = calcInkDensity(binary, w, h, bbox);
+    const slant = calcSlant(binary, w, h, bbox);
+    const pressure = calcPressure(binary, w, h, bbox);
+    const curvature = calcCurvature(binary, w, h, bbox);
+    const symmetry = calcSymmetry(binary, w, h, bbox);
+    const intersections = countIntersections(binary, w, h, bbox);
+    const loops = countLoops(components);
+    const complexity = calcComplexity(bbox, components, intersections, loops, curvature);
+    
+    // 6. Stroke direction analysis
+    setLoadingSub('Анализ направления штрихов');
+    const strokeData = analyzeStrokes(gray, binary, w, h, bbox);
+    
+    // 7. Edge detection
+    setLoadingSub('Детекция контуров (Sobel)');
+    const edges = sobelEdges(gray, w, h);
+    
+    // 8. Heatmap
+    setLoadingSub('Генерация тепловой карты');
+    const heatmap = generateHeatmap(binary, w, h);
+    
+    analysisResults = {
+      w, h, bbox, components, threshold,
+      inkDensity, slant, pressure, curvature, symmetry,
+      intersections, loops, complexity, strokeData, edges
+    };
+    
+    // Render visual results
+    setLoadingSub('Визуализация результатов');
+    renderBinary(binary, w, h);
+    renderHeatmap(heatmap, w, h);
+    renderStrokeDirections(strokeData, w, h, bbox);
+    renderEdges(edges, w, h);
+    
+    // Render metrics
+    renderMetrics();
+    
+    // Generate style tags
+    renderStyle();
+    
+    // Generate AI report
+    generateReport();
+    
+    // Quick stats
+    document.getElementById('qsWidth').textContent = bbox.width + 'px';
+    document.getElementById('qsHeight').textContent = bbox.height + 'px';
+    document.getElementById('qsStrokes').textContent = components.length;
+    document.getElementById('qsComplexity').textContent = complexity + '/100';
+    
+    // Auto-extract
+    setLoadingSub('Извлечение подписи');
+    extractSignature();
+    
+    hideLoading();
+    switchTab('analysis');
+    // Force tab click visual update
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab')[1].classList.add('active');
+  }, 800);
+}
+
+// ==================== IMAGE PROCESSING ALGORITHMS ====================
+function toGrayscale(imgData) {
+  const d = new Uint8ClampedArray(imgData.data);
+  for (let i = 0; i < d.length; i += 4) {
+    const g = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
+    d[i] = d[i+1] = d[i+2] = g;
+    d[i+3] = 255;
+  }
+  return d;
+}
+
+function otsuThreshold(gray, w, h) {
+  const histogram = new Array(256).fill(0);
+  const total = w * h;
+  for (let i = 0; i < gray.length; i += 4) histogram[gray[i]]++;
+  
+  let sum = 0;
+  for (let i = 0; i < 256; i++) sum += i * histogram[i];
+  
+  let sumB = 0, wB = 0, wF = 0;
+  let maxVar = 0, thresh = 127;
+  
+  for (let t = 0; t < 256; t++) {
+    wB += histogram[t];
+    if (wB === 0) continue;
+    wF = total - wB;
+    if (wF === 0) break;
+    sumB += t * histogram[t];
+    const mB = sumB / wB;
+    const mF = (sum - sumB) / wF;
+    const v = wB * wF * (mB - mF) * (mB - mF);
+    if (v > maxVar) { maxVar = v; thresh = t; }
+  }
+  return thresh;
+}
+
+function binarize(gray, w, h, thresh) {
+  const result = new Uint8ClampedArray(gray.length);
+  for (let i = 0; i < gray.length; i += 4) {
+    const v = gray[i] < thresh ? 0 : 255;
+    result[i] = result[i+1] = result[i+2] = v;
+    result[i+3] = 255;
+  }
+  return result;
+}
+
+function findBoundingBox(binary, w, h) {
+  let minX = w, minY = h, maxX = 0, maxY = 0;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const idx = (y * w + x) * 4;
+      if (binary[idx] < 128) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  if (maxX < minX) { minX = 0; minY = 0; maxX = w-1; maxY = h-1; }
+  // Add padding
+  const pad = 5;
+  return {
+    minX: Math.max(0, minX - pad),
+    minY: Math.max(0, minY - pad),
+    maxX: Math.min(w-1, maxX + pad),
+    maxY: Math.min(h-1, maxY + pad),
+    width: maxX - minX + 2*pad,
+    height: maxY - minY + 2*pad
+  };
+}
+
+function findComponents(binary, w, h) {
+  const visited = new Uint8Array(w * h);
+  const components = [];
+  
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const idx = y * w + x;
+      if (binary[idx * 4] < 128 && !visited[idx]) {
+        const comp = [];
+        const queue = [idx];
+        visited[idx] = 1;
+        
+        while (queue.length > 0) {
+          const ci = queue.shift();
+          const cx = ci % w, cy = Math.floor(ci / w);
+          comp.push([cx, cy]);
+          
+          for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+              const nx = cx + dx, ny = cy + dy;
+              if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                const ni = ny * w + nx;
+                if (binary[ni * 4] < 128 && !visited[ni]) {
+                  visited[ni] = 1;
+                  queue.push(ni);
+                }
+              }
+            }
+          }
+        }
+        
+        if (comp.length > 20) {
+          let cminX = w, cminY = h, cmaxX = 0, cmaxY = 0;
+          for (const [px, py] of comp) {
+            if (px < cminX) cminX = px;
+            if (px > cmaxX) cmaxX = px;
+            if (py < cminY) cminY = py;
+            if (py > cmaxY) cmaxY = py;
+          }
+          components.push({
+            pixels: comp,
+            size: comp.length,
+            bbox: { minX: cminX, minY: cminY, maxX: cmaxX, maxY: cmaxY },
+            width: cmaxX - cminX,
+            height: cmaxY - cminY
+          });
+        }
+      }
+    }
+  }
+  return components;
+}
+
+function calcInkDensity(binary, w, h, bbox) {
+  let dark = 0, total = 0;
+  for (let y = bbox.minY; y <= bbox.maxY; y++) {
+    for (let x = bbox.minX; x <= bbox.maxX; x++) {
+      total++;
+      if (binary[(y * w + x) * 4] < 128) dark++;
+    }
+  }
+  return total > 0 ? Math.round((dark / total) * 100) : 0;
+}
+
+function calcSlant(binary, w, h, bbox) {
+  // Analyze the slope of connected components
+  let totalAngle = 0, count = 0;
+  
+  for (let y = bbox.minY; y <= bbox.maxY; y++) {
+    for (let x = bbox.minX; x <= bbox.maxX; x++) {
+      const idx = (y * w + x) * 4;
+      if (binary[idx] < 128) {
+        // Check right neighbor
+        if (x + 1 < w && binary[(y * w + x + 1) * 4] < 128) {
+          // Check top neighbor
+          if (y > 0 && binary[((y-1) * w + x + 1) * 4] < 128) {
+            totalAngle += 1; // Right-slanting
+            count++;
+          }
+        }
+        // Check left neighbor
+        if (x > 0 && binary[(y * w + x - 1) * 4] < 128) {
+          if (y > 0 && binary[((y-1) * w + x - 1) * 4] < 128) {
+            totalAngle -= 1; // Left-slanting
+            count++;
+          }
+        }
+      }
+    }
+  }
+  
+  if (count === 0) return 0;
+  const ratio = totalAngle / count;
+  return Math.round(ratio * 15); // Convert to approximate degrees
+}
+
+function calcPressure(binary, w, h, bbox) {
+  // Measure stroke thickness
+  let totalWidth = 0, thicknessCount = 0;
+  
+  for (let y = bbox.minY; y <= bbox.maxY; y++) {
+    let runLen = 0;
+    for (let x = bbox.minX; x <= bbox.maxX; x++) {
+      if (binary[(y * w + x) * 4] < 128) {
+        runLen++;
+      } else {
+        if (runLen > 0 && runLen < 50) {
+          totalWidth += runLen;
+          thicknessCount++;
+        }
+        runLen = 0;
+      }
+    }
+    if (runLen > 0 && runLen < 50) {
+      totalWidth += runLen;
+      thicknessCount++;
+    }
+  }
+  
+  const avgThickness = thicknessCount > 0 ? totalWidth / thicknessCount : 1;
+  return Math.min(100, Math.round(avgThickness * 12));
+}
+
+function calcCurvature(binary, w, h, bbox) {
+  // Count direction changes along the signature
+  let changes = 0, totalSteps = 0;
+  
+  for (let y = bbox.minY + 1; y < bbox.maxY; y++) {
+    for (let x = bbox.minX + 1; x < bbox.maxX; x++) {
+      const idx = (y * w + x) * 4;
+      if (binary[idx] < 128) {
+        const left = binary[(y * w + x - 1) * 4] < 128;
+        const right = binary[(y * w + x + 1) * 4] < 128;
+        const up = binary[((y-1) * w + x) * 4] < 128;
+        const down = binary[((y+1) * w + x) * 4] < 128;
+        
+        const hConn = left && right;
+        const vConn = up && down;
+        
+        totalSteps++;
+        if (hConn && vConn) changes++;
+        else if (hConn !== vConn) changes += 0.5;
+      }
+    }
+  }
+  
+  return totalSteps > 0 ? Math.min(100, Math.round((changes / totalSteps) * 200)) : 0;
+}
+
+function calcSymmetry(binary, w, h, bbox) {
+  const bw = bbox.maxX - bbox.minX + 1;
+  const bh = bbox.maxY - bbox.minY + 1;
+  let match = 0, total = 0;
+  
+  for (let y = 0; y < bh; y++) {
+    for (let x = 0; x < Math.floor(bw / 2); x++) {
+      const left = binary[((bbox.minY + y) * w + bbox.minX + x) * 4] < 128;
+      const right = binary[((bbox.minY + y) * w + bbox.minX + bw - 1 - x) * 4] < 128;
+      total++;
+      if (left === right) match++;
+    }
+  }
+  
+  return total > 0 ? Math.round((match / total) * 100) : 0;
+}
+
+function countIntersections(binary, w, h, bbox) {
+  let crossings = 0;
+  for (let y = bbox.minY + 1; y < bbox.maxY; y++) {
+    for (let x = bbox.minX + 1; x < bbox.maxX; x++) {
+      const idx = (y * w + x) * 4;
+      if (binary[idx] < 128) {
+        const n = binary[((y-1) * w + x) * 4] < 128;
+        const s = binary[((y+1) * w + x) * 4] < 128;
+        const e = binary[(y * w + x + 1) * 4] < 128;
+        const w2 = binary[(y * w + x - 1) * 4] < 128;
+        if (n && s && e && w2) crossings++;
+      }
+    }
+  }
+  return crossings;
+}
+
+function countLoops(components) {
+  let loops = 0;
+  for (const comp of components) {
+    // Estimate loops based on component complexity
+    const area = comp.size;
+    const perimeter = 2 * (comp.width + comp.height);
+    const compactness = area / (perimeter * perimeter + 1);
+    if (compactness > 0.01 && comp.width > 10 && comp.height > 10) loops++;
+  }
+  return loops;
+}
+
+function calcComplexity(bbox, components, intersections, loops, curvature) {
+  const area = bbox.width * bbox.height;
+  const density = components.length * 5 + intersections * 2 + loops * 10 + curvature * 0.3 + area * 0.01;
+  return Math.min(100, Math.max(5, Math.round(density)));
+}
+
+function analyzeStrokes(gray, binary, w, h, bbox) {
+  const directions = [];
+  const widths = [];
+  
+  for (let y = bbox.minY + 1; y < bbox.maxY; y++) {
+    for (let x = bbox.minX + 1; x < bbox.maxX; x++) {
+      const idx = (y * w + x) * 4;
+      if (binary[idx] < 128) {
+        // Sobel gradient
+        const gx = -gray[((y-1)*w + x-1)*4] - 2*gray[(y*w + x-1)*4] - gray[((y+1)*w + x-1)*4]
+                  + gray[((y-1)*w + x+1)*4] + 2*gray[(y*w + x+1)*4] + gray[((y+1)*w + x+1)*4];
+        const gy = -gray[((y-1)*w + x-1)*4] - 2*gray[((y-1)*w + x)*4] - gray[((y-1)*w + x+1)*4]
+                  + gray[((y+1)*w + x-1)*4] + 2*gray[((y+1)*w + x)*4] + gray[((y+1)*w + x+1)*4];
+        const angle = Math.atan2(gy, gx);
+        directions.push({ x, y, angle, gx, gy });
+      }
+    }
+  }
+  
+  return { directions, count: directions.length };
+}
+
+function sobelEdges(gray, w, h) {
+  const edges = new Uint8ClampedArray(gray.length);
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const gx = -gray[((y-1)*w + x-1)*4] - 2*gray[(y*w + x-1)*4] - gray[((y+1)*w + x-1)*4]
+                + gray[((y-1)*w + x+1)*4] + 2*gray[(y*w + x+1)*4] + gray[((y+1)*w + x+1)*4];
+      const gy = -gray[((y-1)*w + x-1)*4] - 2*gray[((y-1)*w + x)*4] - gray[((y-1)*w + x+1)*4]
+                + gray[((y+1)*w + x-1)*4] + 2*gray[((y+1)*w + x)*4] + gray[((y+1)*w + x+1)*4];
+      const mag = Math.min(255, Math.sqrt(gx*gx + gy*gy));
+      const idx = (y * w + x) * 4;
+      edges[idx] = edges[idx+1] = edges[idx+2] = 255 - mag;
+      edges[idx+3] = 255;
+    }
+  }
+  return edges;
+}
+
+function generateHeatmap(binary, w, h) {
+  const heat = new Uint8ClampedArray(binary.length);
+  const blockSize = 15;
+  
+  for (let by = 0; by < h; by += blockSize) {
+    for (let bx = 0; bx < w; bx += blockSize) {
+      let darkCount = 0, blockTotal = 0;
+      for (let y = by; y < Math.min(by + blockSize, h); y++) {
+        for (let x = bx; x < Math.min(bx + blockSize, w); x++) {
+          blockTotal++;
+          if (binary[(y * w + x) * 4] < 128) darkCount++;
+        }
+      }
+      const density = blockTotal > 0 ? darkCount / blockTotal : 0;
+      
+      // Color mapping: blue -> green -> yellow -> red
+      let r, g, b;
+      if (density < 0.25) {
+        r = 0; g = Math.round(density * 4 * 128); b = Math.round(255 - density * 4 * 128);
+      } else if (density < 0.5) {
+        r = Math.round((density - 0.25) * 4 * 128); g = 128 + Math.round((density - 0.25) * 4 * 127); b = 0;
+      } else if (density < 0.75) {
+        r = 128 + Math.round((density - 0.5) * 4 * 127); g = 255 - Math.round((density - 0.5) * 4 * 128); b = 0;
+      } else {
+        r = 255; g = Math.round((1 - density) * 4 * 128); b = 0;
+      }
+      
+      for (let y = by; y < Math.min(by + blockSize, h); y++) {
+        for (let x = bx; x < Math.min(bx + blockSize, w); x++) {
+          const idx = (y * w + x) * 4;
+          heat[idx] = r; heat[idx+1] = g; heat[idx+2] = b; heat[idx+3] = 255;
+        }
+      }
+    }
+  }
+  return heat;
+}
+
+// ==================== RENDERING ====================
+function renderBinary(binary, w, h) {
+  const canvas = document.getElementById('binaryCanvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.putImageData(new ImageData(binary, w, h), 0, 0);
+}
+
+function renderHeatmap(heatmap, w, h) {
+  const canvas = document.getElementById('heatmapCanvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.putImageData(new ImageData(heatmap, w, h), 0, 0);
+}
+
+function renderStrokeDirections(strokeData, w, h, bbox) {
+  const canvas = document.getElementById('strokeCanvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  
+  // White background
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, w, h);
+  
+  // Draw direction arrows
+  const step = Math.max(1, Math.floor(strokeData.count / 3000));
+  for (let i = 0; i < strokeData.directions.length; i += step) {
+    const d = strokeData.directions[i];
+    const x = d.x, y = d.y;
+    const len = 12;
+    const ex = x + Math.cos(d.angle) * len;
+    const ey = y + Math.sin(d.angle) * len;
+    
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(ex, ey);
+    
+    const hue = ((d.angle + Math.PI) / (2 * Math.PI)) * 360;
+    ctx.strokeStyle = `hsla(${hue}, 80%, 50%, 0.8)`;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+}
+
+function renderEdges(edges, w, h) {
+  const canvas = document.getElementById('edgeCanvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.putImageData(new ImageData(edges, w, h), 0, 0);
+}
+
+function renderMetrics() {
+  const r = analysisResults;
+  if (!r) return;
+  
+  // Update metric values with animation
+  animateValue('mInkDensity', r.inkDensity, '%');
+  animateValue('mPressure', r.pressure, '%');
+  animateValue('mSlant', r.slant, '°');
+  animateValue('mCurvature', r.curvature, '%');
+  animateValue('mSymmetry', r.symmetry, '%');
+  animateValue('mIntersections', r.intersections, '');
+  animateValue('mLoops', r.loops, '');
+  
+  const speed = Math.min(100, Math.round(r.curvature * 0.5 + r.inkDensity * 0.3 + r.pressure * 0.2));
+  animateValue('mSpeed', speed, '%');
+  
+  // Progress bars
+  document.getElementById('pInkDensity').style.width = r.inkDensity + '%';
+  document.getElementById('pPressure').style.width = r.pressure + '%';
+  document.getElementById('pSlant').style.width = Math.min(100, Math.abs(r.slant) * 3) + '%';
+  document.getElementById('pCurvature').style.width = r.curvature + '%';
+  document.getElementById('pSymmetry').style.width = r.symmetry + '%';
+}
+
+function animateValue(id, value, suffix) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = '0' + suffix;
+  let current = 0;
+  const step = Math.ceil(value / 20);
+  const interval = setInterval(() => {
+    current += step;
+    if (current >= value) {
+      current = value;
+      clearInterval(interval);
+    }
+    el.textContent = current + suffix;
+  }, 30);
+}
+
+function renderStyle() {
+  const r = analysisResults;
+  const container = document.getElementById('styleTags');
+  if (!r || !container) return;
+  
+  const tags = [];
+  
+  // Style classification
+  if (r.curvature > 40) tags.push({ text: 'Курсивный стиль', cls: 'purple' });
+  else if (r.curvature > 20) tags.push({ text: 'Смешанный стиль', cls: 'purple' });
+  else tags.push({ text: 'Печатный стиль', cls: 'purple' });
+  
+  // Slant
+  if (r.slant > 5) tags.push({ text: `Наклон вправо (${r.slant}°)`, cls: 'teal' });
+  else if (r.slant < -5) tags.push({ text: `Наклон влево (${Math.abs(r.slant)}°)`, cls: 'teal' });
+  else tags.push({ text: 'Прямой наклон', cls: 'teal' });
+  
+  // Pressure
+  if (r.pressure > 60) tags.push({ text: 'Сильное давление', cls: 'red' });
+  else if (r.pressure > 30) tags.push({ text: 'Среднее давление', cls: 'red' });
+  else tags.push({ text: 'Лёгкое давление', cls: 'red' });
+  
+  // Complexity
+  if (r.complexity > 60) tags.push({ text: 'Высокая сложность', cls: 'yellow' });
+  else if (r.complexity > 30) tags.push({ text: 'Средняя сложность', cls: 'yellow' });
+  else tags.push({ text: 'Простая подпись', cls: 'yellow' });
+  
+  // Loops
+  if (r.loops > 3) tags.push({ text: 'Много петель', cls: 'purple' });
+  if (r.intersections > 5) tags.push({ text: 'Пересекающиеся штрихи', cls: 'teal' });
+  if (r.symmetry > 50) tags.push({ text: 'Симметричная', cls: 'yellow' });
+  
+  container.innerHTML = tags.map(t => `<span class="style-tag ${t.cls}">${t.text}</span>`).join('');
+  
+  const confidence = Math.min(95, 50 + r.complexity * 0.3 + r.curvature * 0.15);
+  document.getElementById('confidenceVal').textContent = confidence + '%';
+  document.getElementById('confidenceBar').style.width = confidence + '%';
+}
+
+// ==================== EXTRACTION ====================
+function extractSignature() {
+  if (!analysisResults || !originalImageData) return;
+  
+  const r = analysisResults;
+  const srcCanvas = document.createElement('canvas');
+  srcCanvas.width = r.w;
+  srcCanvas.height = r.h;
+  const srcCtx = srcCanvas.getContext('2d');
+  srcCtx.putImageData(originalImageData, 0, 0);
+  
+  const bw = r.bbox.maxX - r.bbox.minX + 1;
+  const bh = r.bbox.maxY - r.bbox.minY + 1;
+  
+  const extractCanvas = document.getElementById('extractCanvas');
+  extractCanvas.width = bw;
+  extractCanvas.height = bh;
+  const ctx = extractCanvas.getContext('2d');
+  
+  // Draw cropped region
+  ctx.drawImage(srcCanvas, r.bbox.minX, r.bbox.minY, bw, bh, 0, 0, bw, bh);
+  
+  // Make background transparent
+  const imageData = ctx.getImageData(0, 0, bw, bh);
+  applyExtractionThreshold(imageData, 200);
+  ctx.putImageData(imageData, 0, 0);
+  
+  extractedImageData = ctx.getImageData(0, 0, bw, bh);
+}
+
+function applyExtractionThreshold(imageData, threshold) {
+  const d = imageData.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const brightness = (d[i] + d[i+1] + d[i+2]) / 3;
+    if (brightness > threshold) {
+      d[i+3] = 0; // transparent
+    } else {
+      const alpha = Math.round(255 * (1 - brightness / threshold));
+      d[i+3] = Math.max(50, alpha);
+    }
+  }
+}
+
+function updateThreshold(val) {
+  document.getElementById('thresholdVal').textContent = val;
+  if (analysisResults && originalImageData) {
+    const r = analysisResults;
+    const srcCanvas = document.createElement('canvas');
+    srcCanvas.width = r.w;
+    srcCanvas.height = r.h;
+    srcCanvas.getContext('2d').putImageData(originalImageData, 0, 0);
+    
+    const bw = r.bbox.maxX - r.bbox.minX + 1;
+    const bh = r.bbox.maxY - r.bbox.minY + 1;
+    
+    const extractCanvas = document.getElementById('extractCanvas');
+    extractCanvas.width = bw;
+    extractCanvas.height = bh;
+    const ctx = extractCanvas.getContext('2d');
+    ctx.drawImage(srcCanvas, r.bbox.minX, r.bbox.minY, bw, bh, 0, 0, bw, bh);
+    
+    const imageData = ctx.getImageData(0, 0, bw, bh);
+    applyExtractionThreshold(imageData, parseInt(val));
+    ctx.putImageData(imageData, 0, 0);
+  }
+}
+
+function updateBlur(val) {
+  document.getElementById('blurVal').textContent = val;
+}
+
+function updateContrast(val) {
+  document.getElementById('contrastVal').textContent = val;
+}
+
+function updateSharpen(val) {
+  document.getElementById('sharpenVal').textContent = val;
+}
+
+function updateInkColor(val) {
+  // Placeholder for ink color replacement
+}
+
+function resetExtraction() {
+  extractSignature();
+  document.getElementById('thresholdSlider').value = 200;
+  document.getElementById('thresholdVal').textContent = '200';
+}
+
+function applyExtraction() {
+  extractSignature();
+  switchTab('document');
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab')[3].classList.add('active');
+}
+
+function downloadSignature() {
+  const canvas = document.getElementById('extractCanvas');
+  const link = document.createElement('a');
+  link.download = 'signature.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+
+function copySignature() {
+  const canvas = document.getElementById('extractCanvas');
+  canvas.toBlob(blob => {
+    navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).catch(() => {
+      alert('Копирование не поддерживается в вашем браузере');
+    });
+  });
+}
+
+// ==================== DOCUMENT EDITOR ====================
+function insertSignature() {
+  const extractCanvas = document.getElementById('extractCanvas');
+  const sigArea = document.getElementById('sigArea');
+  
+  if (!extractCanvas.width) {
+    alert('Сначала загрузите и проанализируйте подпись');
+    return;
+  }
+  
+  const sigImg = document.createElement('img');
+  sigImg.src = extractCanvas.toDataURL('image/png');
+  sigImg.className = 'placed-sig';
+  sigImg.draggable = true;
+  sigImg.style.width = '200px';
+  sigImg.style.position = 'absolute';
+  sigImg.style.left = '10px';
+  sigImg.style.top = '10px';
+  
+  // Make draggable within signature area
+  let isDragging = false, startX, startY, startLeft, startTop;
+  
+  sigImg.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    sigImg.classList.add('dragging');
+    startX = e.clientX;
+    startY = e.clientY;
+    startLeft = parseInt(sigImg.style.left) || 0;
+    startTop = parseInt(sigImg.style.top) || 0;
+    e.preventDefault();
+  });
+  
+  document.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    sigImg.style.left = (startLeft + e.clientX - startX) + 'px';
+    sigImg.style.top = (startTop + e.clientY - startY) + 'px';
+  });
+  
+  document.addEventListener('mouseup', () => {
+    isDragging = false;
+    sigImg.classList.remove('dragging');
+  });
+  
+  sigArea.appendChild(sigImg);
+  sigElements.push(sigImg);
+}
+
+function clearSignatures() {
+  sigElements.forEach(el => el.remove());
+  sigElements = [];
+}
+
+function exportDocument() {
+  const docPage = document.getElementById('docPage');
+  // Use canvas to export document
+  const canvas = document.createElement('canvas');
+  const rect = docPage.getBoundingClientRect();
+  canvas.width = rect.width * 2;
+  canvas.height = rect.height * 2;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(2, 2);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, rect.width, rect.height);
+  ctx.fillStyle = '#222';
+  ctx.font = '16px sans-serif';
+  ctx.fillText('Document Export', 20, 30);
+  
+  const link = document.createElement('a');
+  link.download = 'document.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+  
+  // Alternative: print
+  alert('Используйте кнопку "Печать" для экспорта в PDF');
+}
+
+function printDocument() {
+  const docPage = document.getElementById('docPage');
+  const win = window.open('', '', 'width=800,height=1000');
+  win.document.write(`
+    <html>
+    <head>
+      <title>Document</title>
+      <style>
+        body { margin: 40px; font-family: sans-serif; color: #222; }
+        .doc-page { max-width: 700px; }
+        .placed-sig { max-width: 200px; }
+      </style>
+    </head>
+    <body>${docPage.outerHTML}</body>
+    </html>
+  `);
+  win.document.close();
+  win.print();
+}
+
+// ==================== AI REPORT ====================
+function generateReport() {
+  const r = analysisResults;
+  if (!r) return;
+  
+  const reportContainer = document.getElementById('aiReport');
+  const speed = Math.min(100, Math.round(r.curvature * 0.5 + r.inkDensity * 0.3 + r.pressure * 0.2));
+  
+  const lines = [
+    {
+      icon: '🔬',
+      text: `<strong>Общие характеристики:</strong> Подпись занимает область <strong>${r.bbox.width}×${r.bbox.height} px</strong>. Обнаружено <strong>${r.components.length} компонент(ов) связности</strong>, что указывает на ${r.components.length > 5 ? 'раздельное написание элементов' : 'непрерывное написание'}.`
+    },
+    {
+      icon: '✏️',
+      text: `<strong>Плотность чернил:</strong> ${r.inkDensity}% — это ${r.inkDensity > 20 ? 'высокая' : r.inkDensity > 10 ? 'средняя' : 'низкая'} плотность нанесения. ${r.inkDensity > 20 ? 'Возможно, подпись выполнена жирным пером или сильно нажимая.' : 'Подпись может быть выполнена тонким пером.'}`
+    },
+    {
+      icon: '📐',
+      text: `<strong>Наклон:</strong> ${r.slant}° — ${r.slant > 5 ? 'подпись имеет выраженный наклон вправо, характерный для правшей' : r.slant < -5 ? 'подпись имеет наклон влево, что может указывать на левшу' : 'подпись написана практически вертикально'}.`
+    },
+    {
+      icon: '⚖️',
+      text: `<strong>Давление:</strong> ${r.pressure}% — ${r.pressure > 60 ? 'сильное давление, штрихи толстые и уверенные' : r.pressure > 30 ? 'среднее давление, штрихи имеют переменную толщину' : 'лёгкое давление, штрихи тонкие'}. Это может отражать характер автора: ${r.pressure > 60 ? 'уверенный и решительный' : r.pressure > 30 ? 'спокойный и сбалансированный' : 'аккуратный и деликатный'}.`
+    },
+    {
+      icon: '🌀',
+      text: `<strong>Кривизна:</strong> ${r.curvature}% — ${r.curvature > 40 ? 'подпись содержит много изогнутых элементов, характерных для курсивного стиля' : r.curvature > 20 ? 'смешение прямых и кривых элементов' : 'преимущественно прямые линии, похоже на печатный стиль'}.`
+    },
+    {
+      icon: '📊',
+      text: `<strong>Симметрия:</strong> ${r.symmetry}% — ${r.symmetry > 50 ? 'подпись имеет элементы симметрии, что придаёт ей формальный вид' : 'подпись асимметрична, что характерно для индивидуальных стилей'}.`
+    },
+    {
+      icon: '🔀',
+      text: `<strong>Пересечения штрихов:</strong> ${r.intersections} — ${r.intersections > 5 ? 'много пересечений указывает на сложную структуру и хорошую защиту от подделки' : r.intersections > 2 ? 'умеренное количество пересечений' : 'минимальные пересечения'}.`
+    },
+    {
+      icon: '🔄',
+      text: `<strong>Петли и округлые элементы:</strong> ${r.loops} — ${r.loops > 3 ? 'подпись содержит множество петель, что делает её более индивидуальной' : 'подпись содержит минимальное количество петель'}.`
+    },
+    {
+      icon: '⚡',
+      text: `<strong>Оценка скорости написания:</strong> ${speed}% — ${speed > 60 ? 'быстрая, уверенная подпись (молодой или энергичный автор)' : speed > 30 ? 'средняя скорость написания' : 'медленная, аккуратная подпись'}.`
+    },
+    {
+      icon: '💎',
+      text: `<strong>Общая сложность:</strong> ${r.complexity}/100 — ${r.complexity > 60 ? 'высокая сложность. Подпись трудно подделать, содержит множество уникальных элементов.' : r.complexity > 30 ? 'средняя сложность. Подпись достаточно уникальна для идентификации.' : 'простая подпись. Может быть легче воспроизведена посторонними.'}`
+    },
+    {
+      icon: '🔍',
+      text: `<strong>Классификация:</strong> ${r.curvature > 40 ? 'Курсивный стиль' : r.curvature > 20 ? 'Смешанный стиль' : 'Печатный стиль'} • ${r.slant > 5 ? 'Правый наклон' : r.slant < -5 ? 'Левый наклон' : 'Прямой'} • ${r.pressure > 60 ? 'Высокое давление' : r.pressure > 30 ? 'Среднее давление' : 'Низкое давление'}`
+    },
+    {
+      icon: '🧠',
+      text: `<strong>Вывод ИИ:</strong> Подпись демонстрирует ${r.complexity > 50 ? 'высокий уровень индивидуальности и хорошую защиту от подделки' : 'средний уровень сложности'}. ${r.curvature > 30 ? 'Курсивные элементы и изогнутые формы характерны для уверенных людей.' : 'Прямые линии указывают на практичный характер.'} ${r.intersections > 3 ? 'Пересечения штрихов добавляют дополнительный уровень защиты.' : ''} Рекомендуется использовать извлечённую подпись в формате PNG с прозрачным фоном для вставки в документы.`
+    }
+  ];
+  
+  reportContainer.innerHTML = lines.map((line, i) => `
+    <div class="report-line" style="animation-delay:${i * 0.15}s">
+      <div class="r-icon">${line.icon}</div>
+      <div class="r-text">${line.text}</div>
+    </div>
+  `).join('');
+}
+
+function downloadReport() {
+  const text = document.getElementById('aiReport').innerText;
+  const blob = new Blob([text], { type: 'text/plain' });
+  const link = document.createElement('a');
+  link.download = 'signature_analysis_report.txt';
+  link.href = URL.createObjectURL(blob);
+  link.click();
+}
+
+function copyReport() {
+  const text = document.getElementById('aiReport').innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    alert('Отчёт скопирован в буфер обмена');
+  });
+}
+
+// ==================== LOADING ====================
+function showLoading(text, sub) {
+  document.getElementById('loadingText').textContent = text;
+  document.getElementById('loadingSub').textContent = sub;
+  document.getElementById('loadingOverlay').classList.add('show');
+}
+
+function setLoadingSub(text) {
+  document.getElementById('loadingSub').textContent = text;
+}
+
+function hideLoading() {
+  document.getElementById('loadingOverlay').classList.remove('show');
+}
+
+// ==================== INIT ====================
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('🧠 Signature AI Analyzer initialized');
+});
+
+// Keyboard shortcut: 1-5 to switch tabs
+document.addEventListener('keydown', (e) => {
+  const tabMap = { '1': 0, '2': 1, '3': 2, '4': 3, '5': 4 };
+  if (tabMap[e.key] !== undefined) {
+    const tabs = document.querySelectorAll('.tab');
+    if (tabs[tabMap[e.key]]) tabs[tabMap[e.key]].click();
+  }
+});
+</script>
+</body>
+</html>
