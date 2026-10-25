@@ -1,1984 +1,985 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Signature AI Analyzer — Анализатор подписей</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SignLab — анализ, выделение и перенос подписи</title>
 <style>
-:root {
-  --bg: #0a0a12;
-  --card: #12121e;
-  --card2: #1a1a2e;
-  --accent: #7c5cfc;
-  --accent2: #00d4aa;
-  --accent3: #ff6b6b;
-  --text: #e8e8f0;
-  --text2: #8888a0;
-  --border: #2a2a40;
-  --success: #00b894;
-  --warning: #fdcb6e;
-  --grad1: linear-gradient(135deg, #7c5cfc, #00d4aa);
-  --grad2: linear-gradient(135deg, #7c5cfc, #ff6b6b);
-  --shadow: 0 20px 60px rgba(0,0,0,0.5);
-}
-* { margin:0; padding:0; box-sizing:border-box; }
-body {
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  min-height: 100vh;
-  overflow-x: hidden;
-}
-body::before {
-  content:'';
-  position:fixed;
-  top:-50%; left:-50%;
-  width:200%; height:200%;
-  background: radial-gradient(circle at 20% 50%, rgba(124,92,252,0.06) 0%, transparent 50%),
-              radial-gradient(circle at 80% 20%, rgba(0,212,170,0.04) 0%, transparent 50%),
-              radial-gradient(circle at 50% 80%, rgba(255,107,107,0.03) 0%, transparent 50%);
-  z-index:-1;
-  animation: bgFloat 20s ease-in-out infinite;
-}
-@keyframes bgFloat {
-  0%,100% { transform: translate(0,0) rotate(0deg); }
-  33% { transform: translate(2%,-2%) rotate(1deg); }
-  66% { transform: translate(-1%,1%) rotate(-1deg); }
-}
-::-webkit-scrollbar { width:6px; }
-::-webkit-scrollbar-track { background:var(--bg); }
-::-webkit-scrollbar-thumb { background:var(--accent); border-radius:3px; }
-
-.header {
-  text-align:center;
-  padding:40px 20px 30px;
-  position:relative;
-}
-.header h1 {
-  font-size:clamp(1.8rem, 4vw, 3rem);
-  background: var(--grad1);
-  -webkit-background-clip:text;
-  -webkit-text-fill-color:transparent;
-  background-clip:text;
-  font-weight:800;
-  letter-spacing:-1px;
-}
-.header .subtitle {
-  color:var(--text2);
-  font-size:1.1rem;
-  margin-top:8px;
-  max-width:600px;
-  margin-left:auto;
-  margin-right:auto;
-}
-.header .badge {
-  display:inline-block;
-  padding:6px 16px;
-  background:rgba(124,92,252,0.15);
-  border:1px solid rgba(124,92,252,0.3);
-  border-radius:20px;
-  color:var(--accent);
-  font-size:0.85rem;
-  margin-top:12px;
-}
-
-.container {
-  max-width:1400px;
-  margin:0 auto;
-  padding:0 20px 60px;
-}
-
-.tabs {
-  display:flex;
-  gap:6px;
-  background:var(--card);
-  padding:6px;
-  border-radius:16px;
-  margin-bottom:30px;
-  overflow-x:auto;
-  border:1px solid var(--border);
-}
-.tab {
-  flex:1;
-  min-width:140px;
-  padding:14px 20px;
-  border:none;
-  background:transparent;
-  color:var(--text2);
-  font-size:0.95rem;
-  font-weight:600;
-  cursor:pointer;
-  border-radius:12px;
-  transition:all 0.3s;
-  white-space:nowrap;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:8px;
-}
-.tab:hover { color:var(--text); background:rgba(255,255,255,0.05); }
-.tab.active {
-  background:var(--accent);
-  color:#fff;
-  box-shadow:0 8px 30px rgba(124,92,252,0.3);
-}
-.tab .icon { font-size:1.2rem; }
-
-.panel {
-  display:none;
-  animation: fadeUp 0.5s ease;
-}
-.panel.active { display:block; }
-@keyframes fadeUp {
-  from { opacity:0; transform:translateY(20px); }
-  to { opacity:1; transform:translateY(0); }
-}
-
-.card {
-  background:var(--card);
-  border:1px solid var(--border);
-  border-radius:20px;
-  padding:30px;
-  margin-bottom:20px;
-  transition:all 0.3s;
-}
-.card:hover {
-  border-color:rgba(124,92,252,0.3);
-}
-.card-title {
-  font-size:1.3rem;
-  font-weight:700;
-  margin-bottom:20px;
-  display:flex;
-  align-items:center;
-  gap:12px;
-}
-.card-title .dot {
-  width:10px;
-  height:10px;
-  border-radius:50%;
-  background:var(--grad1);
-  flex-shrink:0;
-}
-
-.upload-zone {
-  border:2px dashed var(--border);
-  border-radius:20px;
-  padding:60px 30px;
-  text-align:center;
-  cursor:pointer;
-  transition:all 0.3s;
-  position:relative;
-  overflow:hidden;
-}
-.upload-zone:hover, .upload-zone.dragover {
-  border-color:var(--accent);
-  background:rgba(124,92,252,0.05);
-}
-.upload-zone .upload-icon {
-  font-size:4rem;
-  margin-bottom:16px;
-  display:block;
-}
-.upload-zone .upload-text {
-  font-size:1.2rem;
-  color:var(--text2);
-  margin-bottom:8px;
-}
-.upload-zone .upload-hint {
-  font-size:0.85rem;
-  color:var(--text2);
-  opacity:0.6;
-}
-.upload-zone input[type="file"] {
-  position:absolute;
-  inset:0;
-  opacity:0;
-  cursor:pointer;
-}
-
-.canvas-wrap {
-  position:relative;
-  background:#fff;
-  border-radius:16px;
-  overflow:hidden;
-  margin:20px 0;
-}
-.canvas-wrap canvas {
-  width:100%;
-  height:auto;
-  display:block;
-}
-.canvas-wrap .canvas-label {
-  position:absolute;
-  top:12px;
-  left:12px;
-  background:rgba(0,0,0,0.7);
-  color:#fff;
-  padding:6px 14px;
-  border-radius:8px;
-  font-size:0.85rem;
-  font-weight:600;
-}
-.canvas-wrap.checker {
-  background: repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%) 50%/20px 20px;
-}
-
-.grid-2 {
-  display:grid;
-  grid-template-columns:repeat(auto-fit, minmax(350px, 1fr));
-  gap:20px;
-}
-.grid-3 {
-  display:grid;
-  grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));
-  gap:20px;
-}
-.grid-4 {
-  display:grid;
-  grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));
-  gap:16px;
-}
-
-.metric-card {
-  background:var(--card2);
-  border:1px solid var(--border);
-  border-radius:16px;
-  padding:24px;
-  text-align:center;
-  transition:all 0.3s;
-}
-.metric-card:hover {
-  transform:translateY(-3px);
-  border-color:rgba(124,92,252,0.3);
-}
-.metric-card .metric-value {
-  font-size:2.5rem;
-  font-weight:800;
-  background:var(--grad1);
-  -webkit-background-clip:text;
-  -webkit-text-fill-color:transparent;
-  background-clip:text;
-}
-.metric-card .metric-label {
-  color:var(--text2);
-  font-size:0.9rem;
-  margin-top:6px;
-}
-.metric-card .metric-icon {
-  font-size:2rem;
-  margin-bottom:10px;
-}
-
-.progress-container {
-  background:var(--card2);
-  border-radius:12px;
-  height:12px;
-  overflow:hidden;
-  margin:8px 0;
-}
-.progress-bar {
-  height:100%;
-  background:var(--grad1);
-  border-radius:12px;
-  transition:width 0.8s ease;
-  position:relative;
-}
-.progress-bar::after {
-  content:'';
-  position:absolute;
-  inset:0;
-  background:linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-  animation:shimmer 2s infinite;
-}
-@keyframes shimmer {
-  0% { transform:translateX(-100%); }
-  100% { transform:translateX(100%); }
-}
-
-.analysis-report {
-  background:var(--card2);
-  border:1px solid var(--border);
-  border-radius:16px;
-  padding:28px;
-}
-.analysis-report .report-line {
-  padding:12px 0;
-  border-bottom:1px solid rgba(255,255,255,0.05);
-  display:flex;
-  gap:12px;
-  align-items:flex-start;
-  animation: fadeUp 0.5s ease forwards;
-  opacity:0;
-}
-.analysis-report .report-line:last-child { border-bottom:none; }
-.analysis-report .report-line .r-icon {
-  font-size:1.3rem;
-  flex-shrink:0;
-  width:32px;
-  text-align:center;
-}
-.analysis-report .report-line .r-text {
-  line-height:1.6;
-}
-.analysis-report .report-line .r-text strong {
-  color:var(--accent2);
-}
-
-.btn {
-  padding:14px 28px;
-  border:none;
-  border-radius:12px;
-  font-size:1rem;
-  font-weight:600;
-  cursor:pointer;
-  transition:all 0.3s;
-  display:inline-flex;
-  align-items:center;
-  gap:10px;
-}
-.btn-primary {
-  background:var(--grad1);
-  color:#fff;
-  box-shadow:0 8px 30px rgba(124,92,252,0.3);
-}
-.btn-primary:hover {
-  transform:translateY(-2px);
-  box-shadow:0 12px 40px rgba(124,92,252,0.4);
-}
-.btn-secondary {
-  background:var(--card2);
-  color:var(--text);
-  border:1px solid var(--border);
-}
-.btn-secondary:hover {
-  border-color:var(--accent);
-  background:rgba(124,92,252,0.1);
-}
-.btn-danger {
-  background:rgba(255,107,107,0.15);
-  color:var(--accent3);
-  border:1px solid rgba(255,107,107,0.3);
-}
-.btn-danger:hover {
-  background:rgba(255,107,107,0.25);
-}
-.btn-group {
-  display:flex;
-  gap:12px;
-  flex-wrap:wrap;
-  margin-top:20px;
-}
-
-.slider-group {
-  margin:16px 0;
-}
-.slider-group label {
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  color:var(--text2);
-  font-size:0.9rem;
-  margin-bottom:8px;
-}
-.slider-group label span {
-  color:var(--accent);
-  font-weight:700;
-  min-width:50px;
-  text-align:right;
-}
-input[type="range"] {
-  width:100%;
-  -webkit-appearance:none;
-  appearance:none;
-  height:6px;
-  background:var(--border);
-  border-radius:3px;
-  outline:none;
-}
-input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance:none;
-  appearance:none;
-  width:22px;
-  height:22px;
-  background:var(--accent);
-  border-radius:50%;
-  cursor:pointer;
-  box-shadow:0 4px 15px rgba(124,92,252,0.4);
-}
-
-/* Document Editor */
-.doc-page {
-  background:#fff;
-  color:#222;
-  border-radius:8px;
-  padding:50px;
-  max-width:800px;
-  margin:0 auto;
-  position:relative;
-  min-height:600px;
-  box-shadow:var(--shadow);
-}
-.doc-page .doc-header {
-  text-align:center;
-  margin-bottom:30px;
-  padding-bottom:20px;
-  border-bottom:2px solid #eee;
-}
-.doc-page .doc-header h2 {
-  font-size:1.5rem;
-  color:#222;
-  font-weight:700;
-}
-.doc-page .doc-header .doc-sub {
-  color:#888;
-  font-size:0.95rem;
-  margin-top:4px;
-}
-.doc-page .doc-body {
-  line-height:1.8;
-  font-size:1rem;
-}
-.doc-page .doc-body p {
-  margin-bottom:12px;
-}
-.doc-page .doc-body [contenteditable] {
-  outline:none;
-  border-bottom:1px dashed #ddd;
-  padding-bottom:2px;
-}
-.doc-page .doc-body [contenteditable]:focus {
-  border-bottom-color:var(--accent);
-  background:rgba(124,92,252,0.05);
-}
-.doc-page .doc-line {
-  margin:12px 0;
-}
-.doc-page .doc-line label {
-  display:block;
-  color:#666;
-  font-size:0.85rem;
-  margin-bottom:4px;
-}
-.doc-page .doc-line input, .doc-page .doc-line textarea {
-  width:100%;
-  border:none;
-  border-bottom:1px solid #ddd;
-  padding:8px 0;
-  font-size:1rem;
-  background:transparent;
-  color:#222;
-  outline:none;
-}
-.doc-page .doc-line input:focus, .doc-page .doc-line textarea:focus {
-  border-bottom-color:var(--accent);
-}
-.doc-page .signature-area {
-  position:relative;
-  min-height:120px;
-  border-bottom:1px solid #999;
-  margin-top:40px;
-}
-.doc-page .signature-area .sig-label {
-  position:absolute;
-  bottom:-25px;
-  left:0;
-  color:#999;
-  font-size:0.85rem;
-}
-.doc-page .doc-footer {
-  margin-top:50px;
-  display:flex;
-  justify-content:space-between;
-  font-size:0.85rem;
-  color:#999;
-}
-.doc-page .placed-sig {
-  position:absolute;
-  cursor:grab;
-  user-select:none;
-  transition:filter 0.2s;
-}
-.doc-page .placed-sig:hover {
-  filter:drop-shadow(0 4px 15px rgba(0,0,0,0.2));
-}
-.doc-page .placed-sig.dragging {
-  cursor:grabbing;
-  opacity:0.8;
-}
-
-/* Loading overlay */
-.loading-overlay {
-  position:fixed;
-  inset:0;
-  background:rgba(10,10,18,0.9);
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  z-index:1000;
-  opacity:0;
-  pointer-events:none;
-  transition:opacity 0.3s;
-}
-.loading-overlay.show {
-  opacity:1;
-  pointer-events:all;
-}
-.loading-spinner {
-  width:80px;
-  height:80px;
-  border:4px solid var(--border);
-  border-top-color:var(--accent);
-  border-radius:50%;
-  animation:spin 1s linear infinite;
-}
-@keyframes spin { to { transform:rotate(360deg); } }
-.loading-text {
-  margin-top:20px;
-  font-size:1.2rem;
-  color:var(--text2);
-}
-.loading-sub {
-  margin-top:8px;
-  font-size:0.95rem;
-  color:var(--accent);
-}
-
-/* Radar Chart */
-.radar-chart {
-  width:100%;
-  max-width:400px;
-  margin:0 auto;
-}
-.radar-chart svg {
-  width:100%;
-  height:auto;
-}
-
-/* Color swatches */
-.color-swatch {
-  width:32px;
-  height:32px;
-  border-radius:8px;
-  border:2px solid var(--border);
-  display:inline-block;
-  margin:2px;
-}
-
-/* Tooltip */
-.tooltip {
-  position:relative;
-}
-.tooltip::after {
-  content:attr(data-tip);
-  position:absolute;
-  bottom:calc(100% + 8px);
-  left:50%;
-  transform:translateX(-50%);
-  background:var(--card2);
-  color:var(--text);
-  padding:8px 14px;
-  border-radius:8px;
-  font-size:0.85rem;
-  white-space:nowrap;
-  opacity:0;
-  pointer-events:none;
-  transition:opacity 0.3s;
-  border:1px solid var(--border);
-  z-index:10;
-}
-.tooltip:hover::after { opacity:1; }
-
-/* Style tags */
-.style-tag {
-  display:inline-block;
-  padding:8px 18px;
-  border-radius:20px;
-  font-size:0.9rem;
-  font-weight:600;
-  margin:4px;
-}
-.style-tag.purple {
-  background:rgba(124,92,252,0.15);
-  color:var(--accent);
-  border:1px solid rgba(124,92,252,0.3);
-}
-.style-tag.teal {
-  background:rgba(0,212,170,0.15);
-  color:var(--accent2);
-  border:1px solid rgba(0,212,170,0.3);
-}
-.style-tag.red {
-  background:rgba(255,107,107,0.15);
-  color:var(--accent3);
-  border:1px solid rgba(255,107,107,0.3);
-}
-.style-tag.yellow {
-  background:rgba(253,203,110,0.15);
-  color:var(--warning);
-  border:1px solid rgba(253,203,110,0.3);
-}
-
-textarea.doc-textarea {
-  width:100%;
-  min-height:200px;
-  background:var(--card2);
-  border:1px solid var(--border);
-  border-radius:12px;
-  padding:16px;
-  color:var(--text);
-  font-family:inherit;
-  font-size:1rem;
-  resize:vertical;
-  outline:none;
-}
-textarea.doc-textarea:focus {
-  border-color:var(--accent);
-}
-
-/* Responsive */
-@media (max-width:768px) {
-  .grid-2, .grid-3, .grid-4 {
-    grid-template-columns:1fr;
-  }
-  .doc-page {
-    padding:25px;
-  }
-  .tabs {
-    padding:4px;
-  }
-  .tab {
-    padding:10px 14px;
-    font-size:0.85rem;
-    min-width:100px;
-  }
-  .btn {
-    padding:12px 20px;
-    font-size:0.9rem;
-  }
-}
-
-/* Animation for analysis lines */
-.report-line:nth-child(1) { animation-delay:0.1s; }
-.report-line:nth-child(2) { animation-delay:0.2s; }
-.report-line:nth-child(3) { animation-delay:0.3s; }
-.report-line:nth-child(4) { animation-delay:0.4s; }
-.report-line:nth-child(5) { animation-delay:0.5s; }
-.report-line:nth-child(6) { animation-delay:0.6s; }
-.report-line:nth-child(7) { animation-delay:0.7s; }
-.report-line:nth-child(8) { animation-delay:0.8s; }
-.report-line:nth-child(9) { animation-delay:0.9s; }
-.report-line:nth-child(10) { animation-delay:1.0s; }
-
-.hidden { display:none !important; }
-
-.footnote {
-  text-align:center;
-  color:var(--text2);
-  font-size:0.85rem;
-  margin-top:40px;
-  padding:20px;
-  border-top:1px solid var(--border);
-}
-.footnote a {
-  color:var(--accent);
-  text-decoration:none;
-}
+:root{
+  --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --line:#2a2f3a;
+  --fg:#e6e9ef; --mut:#8c94a6; --acc:#5aa9ff; --acc2:#39d98a; --warn:#ffb648; --bad:#ff6b6b;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 "Segoe UI",Roboto,Arial,sans-serif}
+header{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+h1{font-size:17px;margin:0;letter-spacing:.3px}
+h1 span{color:var(--acc)}
+.badge{font-size:11px;color:var(--mut);border:1px solid var(--line);padding:2px 8px;border-radius:20px}
+.notice{background:#2a1f12;border-bottom:1px solid #4a3414;color:#ffcf8f;padding:8px 18px;font-size:12.5px}
+nav{display:flex;gap:6px;padding:10px 18px;border-bottom:1px solid var(--line);flex-wrap:wrap;background:var(--panel)}
+nav button{background:transparent;border:1px solid transparent;color:var(--mut);padding:7px 14px;border-radius:8px;cursor:pointer;font-size:13px}
+nav button:hover{color:var(--fg);background:var(--panel2)}
+nav button.on{background:var(--panel2);color:var(--fg);border-color:var(--line)}
+main{padding:18px;max-width:1400px;margin:0 auto}
+section{display:none}
+section.on{display:block}
+.grid{display:grid;grid-template-columns:320px 1fr;gap:16px}
+@media(max-width:900px){.grid{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+.card h3{margin:0 0 10px;font-size:13px;text-transform:uppercase;letter-spacing:.8px;color:var(--mut)}
+label.row{display:block;margin:10px 0;font-size:12.5px;color:var(--mut)}
+label.row b{color:var(--fg);font-weight:600;float:right}
+input[type=range]{width:100%;accent-color:var(--acc)}
+input[type=text],input[type=password],select,textarea{width:100%;background:#10131a;border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:8px;font:12.5px monospace}
+button.b{background:var(--acc);border:0;color:#04121f;font-weight:700;padding:9px 14px;border-radius:9px;cursor:pointer;font-size:13px}
+button.b:hover{filter:brightness(1.1)}
+button.g{background:var(--panel2);color:var(--fg);border:1px solid var(--line)}
+button.b[disabled]{opacity:.4;cursor:not-allowed}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.drop{border:2px dashed var(--line);border-radius:12px;padding:28px;text-align:center;color:var(--mut);cursor:pointer}
+.drop.hot{border-color:var(--acc);color:var(--acc)}
+canvas{max-width:100%;border-radius:8px;display:block}
+.cvwrap{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px;overflow:auto}
+.chk{background-image:linear-gradient(45deg,#2b2f38 25%,transparent 25%),linear-gradient(-45deg,#2b2f38 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#2b2f38 75%),linear-gradient(-45deg,transparent 75%,#2b2f38 75%);background-size:16px 16px;background-position:0 0,0 8px,8px -8px,-8px 0}
+.met{display:grid;grid-template-columns:repeat(auto-fill,minmax(205px,1fr));gap:10px}
+.met div{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:9px 11px}
+.met .k{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px}
+.met .v{font-size:18px;font-weight:700;color:var(--acc)}
+.met .d{font-size:11px;color:var(--mut);margin-top:3px}
+pre.rep{white-space:pre-wrap;background:#10131a;border:1px solid var(--line);border-radius:10px;padding:12px;font:12.5px/1.65 "Segoe UI",sans-serif;color:#cfd6e4}
+.flex{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.tag{font-size:11px;padding:2px 8px;border-radius:20px;border:1px solid var(--line);color:var(--mut)}
+.ok{color:var(--acc2);border-color:#1d5e3c}
+.no{color:var(--bad);border-color:#5e1d1d}
+small.h{color:var(--mut);font-size:11.5px;display:block;margin-top:6px}
+.sw{display:flex;align-items:center;gap:7px;margin:8px 0;font-size:12.5px;color:var(--mut)}
+#status{font-size:12px;color:var(--mut);margin-left:auto}
 </style>
 </head>
 <body>
 
-<!-- Loading Overlay -->
-<div class="loading-overlay" id="loadingOverlay">
-  <div class="loading-spinner"></div>
-  <div class="loading-text" id="loadingText">Анализ подписи...</div>
-  <div class="loading-sub" id="loadingSub">Инициализация нейросети</div>
+<header>
+  <h1>Sign<span>Lab</span></h1>
+  <span class="badge">локальный CV-движок + опциональная vision-LLM</span>
+  <span id="status">готов</span>
+</header>
+<div class="notice">
+  ⚠️ Используйте только со <b>своей</b> подписью или с письменного согласия владельца. Перенос чужой подписи на документ — подлог (ст. 327 УК РФ и аналоги). Инструмент создан для оцифровки собственного автографа и для учебного разбора того, как алгоритмы «видят» подпись.
 </div>
 
-<!-- Header -->
-<div class="header">
-  <h1>✍️ Signature AI Analyzer</h1>
-  <p class="subtitle">Интеллектуальный анализ подписей с помощью компьютерного зрения. Загрузите снимок подписи — ИИ изучит её до мельчайших деталей.</p>
-  <div class="badge">🧠 Computer Vision • 📊 Deep Analysis • 🔗 Local Processing</div>
-</div>
+<nav>
+  <button data-t="src" class="on">1 · Источник и вырезание</button>
+  <button data-t="an">2 · Анализ ИИ</button>
+  <button data-t="cmp">3 · Сравнение / верификация</button>
+  <button data-t="ins">4 · Вставка в документ</button>
+  <button data-t="ai">5 · Подключение модели</button>
+</nav>
 
-<div class="container">
-  <!-- Tabs -->
-  <div class="tabs">
-    <button class="tab active" onclick="switchTab('upload')">
-      <span class="icon">📤</span> Загрузка
-    </button>
-    <button class="tab" onclick="switchTab('analysis')">
-      <span class="icon">🔬</span> Анализ
-    </button>
-    <button class="tab" onclick="switchTab('extract')">
-      <span class="icon">✂️</span> Извлечение
-    </button>
-    <button class="tab" onclick="switchTab('document')">
-      <span class="icon">📄</span> Документ
-    </button>
-    <button class="tab" onclick="switchTab('ai')">
-      <span class="icon">🤖</span> ИИ-Отчёт
-    </button>
-  </div>
+<main>
 
-  <!-- ========== PANEL: UPLOAD ========== -->
-  <div class="panel active" id="panel-upload">
+<!-- ============ 1. ИСТОЧНИК ============ -->
+<section id="t-src" class="on">
+<div class="grid">
+  <div>
     <div class="card">
-      <div class="card-title"><div class="dot"></div>Загрузите снимок подписи</div>
-      <div class="upload-zone" id="uploadZone">
-        <span class="upload-icon">🖼️</span>
-        <div class="upload-text">Перетащите изображение сюда или нажмите для выбора</div>
-        <div class="upload-hint">Поддерживаются: JPG, PNG, BMP, WEBP • Рекомендуемый размер: 800×400 px</div>
-        <input type="file" id="fileInput" accept="image/*">
+      <h3>Загрузка снимка</h3>
+      <div class="drop" id="drop">Перетащите фото/скан документа,<br>кликните для выбора или вставьте из буфера (Ctrl+V)</div>
+      <input type="file" id="file" accept="image/*" hidden>
+      <div class="btns">
+        <button class="b g" id="autoFind">🎯 Авто-поиск подписи</button>
+        <button class="b g" id="resetCrop">Сбросить рамку</button>
       </div>
-      <div id="originalPreview" class="hidden">
-        <div class="canvas-wrap">
-          <div class="canvas-label">Оригинал</div>
-          <canvas id="originalCanvas"></canvas>
-        </div>
-        <div class="btn-group">
-          <button class="btn btn-primary" onclick="startAnalysis()">
-            🧠 Запустить ИИ-анализ
-          </button>
-          <button class="btn btn-secondary" onclick="resetAll()">
-            🔄 Сбросить
-          </button>
-        </div>
-      </div>
+      <small class="h">Выделите область с подписью мышью прямо на снимке.</small>
     </div>
 
-    <!-- Quick stats -->
-    <div class="card hidden" id="quickStats">
-      <div class="card-title"><div class="dot"></div>Быстрые характеристики</div>
-      <div class="grid-4">
-        <div class="metric-card">
-          <div class="metric-icon">📐</div>
-          <div class="metric-value" id="qsWidth">—</div>
-          <div class="metric-label">Ширина подписи</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-icon">📏</div>
-          <div class="metric-value" id="qsHeight">—</div>
-          <div class="metric-label">Высота подписи</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-icon">🖊️</div>
-          <div class="metric-value" id="qsStrokes">—</div>
-          <div class="metric-label">Штрихов</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-icon">💎</div>
-          <div class="metric-value" id="qsComplexity">—</div>
-          <div class="metric-label">Сложность</div>
-        </div>
+    <div class="card" style="margin-top:14px">
+      <h3>Отделение чернил от бумаги</h3>
+      <label class="row">Радиус выравнивания фона <b id="vBg">24</b>
+        <input type="range" id="sBg" min="4" max="80" value="24"></label>
+      <label class="row">Порог (сдвиг от Otsu) <b id="vTh">0</b>
+        <input type="range" id="sTh" min="-60" max="60" value="0"></label>
+      <label class="row">Мягкость края (сглаживание) <b id="vSo">10</b>
+        <input type="range" id="sSo" min="1" max="40" value="10"></label>
+      <label class="row">Учёт цвета чернил (синяя паста) <b id="vCo">35</b>
+        <input type="range" id="sCo" min="0" max="100" value="35"></label>
+      <label class="row">Удаление шума, мин. площадь (px) <b id="vNo">12</b>
+        <input type="range" id="sNo" min="0" max="400" value="12"></label>
+      <div class="sw"><input type="checkbox" id="cOnlyBig"><span>оставить только самый крупный объект</span></div>
+      <div class="sw"><input type="checkbox" id="cRecolor"><span>перекрасить чернила</span>
+        <input type="color" id="inkColor" value="#10234a" style="width:34px;height:24px;background:none;border:0"></div>
+      <div class="sw"><input type="checkbox" id="cBoost" checked><span>усилить плотность чернил</span></div>
+      <div class="btns">
+        <button class="b" id="doExtract">✂️ Вырезать подпись</button>
+        <button class="b g" id="toAnalyze">→ К анализу</button>
       </div>
     </div>
   </div>
 
-  <!-- ========== PANEL: ANALYSIS ========== -->
-  <div class="panel" id="panel-analysis">
-    <div class="grid-2">
-      <!-- Binary -->
-      <div class="card">
-        <div class="card-title"><div class="dot"></div>Бинаризация (чёрно-белый)</div>
-        <div class="canvas-wrap">
-          <div class="canvas-label">Binary Image</div>
-          <canvas id="binaryCanvas"></canvas>
-        </div>
-      </div>
-      <!-- Heatmap -->
-      <div class="card">
-        <div class="card-title"><div class="dot"></div>Тепловая карта плотности</div>
-        <div class="canvas-wrap">
-          <div class="canvas-label">Ink Density</div>
-          <canvas id="heatmapCanvas"></canvas>
-        </div>
-      </div>
-      <!-- Stroke Direction -->
-      <div class="card">
-        <div class="card-title"><div class="dot"></div>Направление штрихов</div>
-        <div class="canvas-wrap">
-          <div class="canvas-label">Stroke Direction</div>
-          <canvas id="strokeCanvas"></canvas>
-        </div>
-      </div>
-      <!-- Edges -->
-      <div class="card">
-        <div class="card-title"><div class="dot"></div>Детекция контуров (Sobel)</div>
-        <div class="canvas-wrap">
-          <div class="canvas-label">Edge Detection</div>
-          <canvas id="edgeCanvas"></canvas>
-        </div>
-      </div>
-    </div>
-
-    <!-- Metrics -->
+  <div>
     <div class="card">
-      <div class="card-title"><div class="dot"></div>Метрики анализа</div>
-      <div class="grid-4">
-        <div class="metric-card">
-          <div class="metric-icon">🎯</div>
-          <div class="metric-value" id="mInkDensity">—</div>
-          <div class="metric-label">Плотность чернил</div>
-          <div class="progress-container"><div class="progress-bar" id="pInkDensity" style="width:0%"></div></div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-icon">⚖️</div>
-          <div class="metric-value" id="mPressure">—</div>
-          <div class="metric-label">Среднее давление</div>
-          <div class="progress-container"><div class="progress-bar" id="pPressure" style="width:0%"></div></div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-icon">🔀</div>
-          <div class="metric-value" id="mSlant">—</div>
-          <div class="metric-label">Наклон</div>
-          <div class="progress-container"><div class="progress-bar" id="pSlant" style="width:0%"></div></div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-icon">🌀</div>
-          <div class="metric-value" id="mCurvature">—</div>
-          <div class="metric-label">Кривизна</div>
-          <div class="progress-container"><div class="progress-bar" id="pCurvature" style="width:0%"></div></div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-icon">📊</div>
-          <div class="metric-value" id="mSymmetry">—</div>
-          <div class="metric-label">Симметрия</div>
-          <div class="progress-container"><div class="progress-bar" id="pSymmetry" style="width:0%"></div></div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-icon">🎪</div>
-          <div class="metric-value" id="mIntersections">—</div>
-          <div class="metric-label">Пересечения</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-icon">🔄</div>
-          <div class="metric-value" id="mLoops">—</div>
-          <div class="metric-label">Петли</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-icon">⚡</div>
-          <div class="metric-value" id="mSpeed">—</div>
-          <div class="metric-label">Оценка скорости</div>
-        </div>
+      <h3>Снимок (выделите подпись)</h3>
+      <div class="cvwrap"><canvas id="srcC"></canvas></div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <h3>Результат: прозрачный PNG</h3>
+      <div class="cvwrap chk"><canvas id="outC"></canvas></div>
+      <div class="btns">
+        <button class="b g" id="dlPng">⬇ PNG (прозрачный)</button>
+        <button class="b g" id="cpPng">📋 Копировать в буфер</button>
+        <button class="b g" id="dlSvg">⬇ SVG (вектор)</button>
       </div>
     </div>
-
-    <!-- Style Classification -->
-    <div class="card">
-      <div class="card-title"><div class="dot"></div>Классификация стиля</div>
-      <div id="styleTags">
-        <span class="style-tag purple">Классификация...</span>
-      </div>
-      <div style="margin-top:20px" class="slider-group">
-        <label>Уверенность классификации <span id="confidenceVal">—</span></label>
-        <div class="progress-container"><div class="progress-bar" id="confidenceBar" style="width:0%"></div></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ========== PANEL: EXTRACT ========== -->
-  <div class="panel" id="panel-extract">
-    <div class="grid-2">
-      <div class="card">
-        <div class="card-title"><div class="dot"></div>Извлечённая подпись</div>
-        <div class="canvas-wrap checker">
-          <div class="canvas-label">Transparent PNG</div>
-          <canvas id="extractCanvas"></canvas>
-        </div>
-        <div class="btn-group">
-          <button class="btn btn-primary" onclick="downloadSignature()">📥 Скачать PNG</button>
-          <button class="btn btn-secondary" onclick="copySignature()">📋 Копировать</button>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-title"><div class="dot"></div>Настройки извлечения</div>
-        <div class="slider-group">
-          <label>Порог удаления фона <span id="thresholdVal">200</span></label>
-          <input type="range" id="thresholdSlider" min="100" max="255" value="200" oninput="updateThreshold(this.value)">
-        </div>
-        <div class="slider-group">
-          <label>Размытие краёв <span id="blurVal">1</span></label>
-          <input type="range" id="blurSlider" min="0" max="5" value="1" oninput="updateBlur(this.value)">
-        </div>
-        <div class="slider-group">
-          <label>Контраст <span id="contrastVal">100</span>%</label>
-          <input type="range" id="contrastSlider" min="50" max="200" value="100" oninput="updateContrast(this.value)">
-        </div>
-        <div class="slider-group">
-          <label>Усиление краёв <span id="sharpenVal">0</span></label>
-          <input type="range" id="sharpenSlider" min="0" max="100" value="0" oninput="updateSharpen(this.value)">
-        </div>
-        <div style="margin-top:20px">
-          <div class="card-title" style="font-size:1rem; margin-bottom:12px"><div class="dot"></div>Цвет чернил</div>
-          <input type="color" id="inkColor" value="#000000" onchange="updateInkColor(this.value)" style="width:60px; height:40px; border:none; background:none; cursor:pointer;">
-          <label style="margin-left:10px; color:var(--text2)">Заменить цвет подписи</label>
-        </div>
-        <div class="btn-group">
-          <button class="btn btn-secondary" onclick="resetExtraction()">🔄 Сбросить</button>
-          <button class="btn btn-primary" onclick="applyExtraction()">✅ Применить</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ========== PANEL: DOCUMENT ========== -->
-  <div class="panel" id="panel-document">
-    <div class="card">
-      <div class="card-title"><div class="dot"></div>Редактор документа</div>
-      <p style="color:var(--text2); margin-bottom:20px;">Вставьте извлечённую подпись в документ. Перетащите подпись в нужное место.</p>
-      <div class="btn-group" style="margin-top:0; margin-bottom:20px">
-        <button class="btn btn-primary" onclick="insertSignature()">📎 Вставить подпись</button>
-        <button class="btn btn-secondary" onclick="clearSignatures()">🗑️ Очистить подписи</button>
-        <button class="btn btn-secondary" onclick="exportDocument()">📄 Экспорт</button>
-        <button class="btn btn-secondary" onclick="printDocument()">🖨️ Печать</button>
-      </div>
-
-      <div class="doc-page" id="docPage">
-        <div class="doc-header">
-          <h2 contenteditable="true">ЗАЯВЛЕНИЕ</h2>
-          <div class="doc-sub contenteditable" contenteditable="true">О согласии на обработку персональных данных</div>
-        </div>
-        <div class="doc-body">
-          <p>Настоящим я, <input type="text" placeholder="Фамилия Имя Отчество" style="width:100%; border:none; border-bottom:1px solid #ddd; padding:4px 0; font-size:1rem; background:transparent; outline:none; color:#222;">, проживающий(-ая) по адресу:</p>
-          <p><input type="text" placeholder="Адрес" style="width:100%; border:none; border-bottom:1px solid #ddd; padding:4px 0; font-size:1rem; background:transparent; outline:none; color:#222;"></p>
-          <p>Даю своё согласие на обработку моих персональных данных в соответствии с Федеральным законом «О персональных данных».</p>
-          <p>Перечень персональных данных, на обработку которых даётся согласие:</p>
-          <p style="margin-left:30px;">— Фамилия, имя, отчество</p>
-          <p style="margin-left:30px;">— Контактная информация</p>
-          <p style="margin-left:30px;">— Иные данные, необходимые для предоставления услуг</p>
-          <p>Срок действия настоящего согласия: бессрочно.</p>
-          <div style="display:flex; justify-content:space-between; margin-top:40px; gap:30px;">
-            <div style="flex:1">
-              <div class="doc-line">
-                <label>Дата</label>
-                <input type="text" placeholder="ДД.ММ.ГГГГ" id="docDate">
-              </div>
-            </div>
-            <div style="flex:1">
-              <div class="doc-line">
-                <label>Подпись</label>
-                <div class="signature-area" id="sigArea">
-                  <!-- Signature will be placed here -->
-                </div>
-                <div class="sig-label">/ ФИО /</div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="doc-footer">
-          <span>Документ №12345</span>
-          <span>Страница 1 из 1</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ========== PANEL: AI REPORT ========== -->
-  <div class="panel" id="panel-ai">
-    <div class="card">
-      <div class="card-title"><div class="dot"></div>🤖 ИИ-Отчёт анализа подписи</div>
-      <div class="analysis-report" id="aiReport">
-        <div class="report-line">
-          <div class="r-icon">⏳</div>
-          <div class="r-text">Загрузите изображение и запустите анализ для получения отчёта...</div>
-        </div>
-      </div>
-      <div class="btn-group">
-        <button class="btn btn-primary" onclick="downloadReport()">📥 Скачать отчёт</button>
-        <button class="btn btn-secondary" onclick="copyReport()">📋 Копировать текст</button>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title"><div class="dot"></div>🔍 Методология анализа</div>
-      <div class="analysis-report">
-        <div class="report-line" style="opacity:1; animation:none;">
-          <div class="r-icon">1️⃣</div>
-          <div class="r-text"><strong>Предварительная обработка:</strong> Конвертация в оттенки серого, адаптивная бинаризация методом Оцу, удаление шумов медианным фильтром.</div>
-        </div>
-        <div class="report-line" style="opacity:1; animation:none;">
-          <div class="r-icon">2️⃣</div>
-          <div class="r-text"><strong>Выделение подписи:</strong> Поиск границ через анализ компонент связности, выделение bounding box, отделение от фона.</div>
-        </div>
-        <div class="report-line" style="opacity:1; animation:none;">
-          <div class="r-icon">3️⃣</div>
-          <div class="r-text"><strong>Анализ штрихов:</strong> Трассировка направления штрихов через градиентный оператор Собеля, оценка давления по толщине линий, анализ кривизны.</div>
-        </div>
-        <div class="report-line" style="opacity:1; animation:none;">
-          <div class="r-icon">4️⃣</div>
-          <div class="r-text"><strong>Классификация:</strong> Определение стиля написания (курсив/печатный/смешанный), анализ наклона, оценка сложности и уникальности.</div>
-        </div>
-        <div class="report-line" style="opacity:1; animation:none;">
-          <div class="r-icon">5️⃣</div>
-          <div class="r-text"><strong>Извлечение:</strong> Удаление фона, сглаживание краёв, формирование прозрачного PNG для вставки в документы.</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="footnote">
-    Signature AI Analyzer v2.0 • Обработка выполняется локально в браузере<br>
-    🧠 Computer Vision • 📊 Image Processing • 🔒 Данные не покидают ваше устройство
   </div>
 </div>
+</section>
+
+<!-- ============ 2. АНАЛИЗ ============ -->
+<section id="t-an">
+<div class="grid">
+  <div>
+    <div class="card">
+      <h3>Что показать поверх</h3>
+      <div class="sw"><input type="checkbox" id="oSkel" checked><span>скелет (средняя линия пера)</span></div>
+      <div class="sw"><input type="checkbox" id="oPts" checked><span>начала/концы и пересечения</span></div>
+      <div class="sw"><input type="checkbox" id="oBase" checked><span>базовая линия и наклон</span></div>
+      <div class="sw"><input type="checkbox" id="oWidth"><span>карта нажима (толщина штриха)</span></div>
+      <div class="btns">
+        <button class="b" id="replay">▶ Проиграть порядок письма</button>
+        <button class="b g" id="reAnalyze">Пересчитать</button>
+      </div>
+      <small class="h">Порядок штрихов — реконструкция по топологии скелета (слева направо, от концевых точек). Это гипотеза, а не запись пера.</small>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <h3>Вектор признаков («эмбеддинг»)</h3>
+      <canvas id="fvC" width="300" height="150"></canvas>
+      <small class="h">16 нормированных чисел — упрощённый аналог того, что нейросеть-верификатор хранит вместо самой картинки.</small>
+      <div class="btns">
+        <button class="b g" id="saveRef">★ Сохранить как эталон</button>
+      </div>
+    </div>
+  </div>
+  <div>
+    <div class="card">
+      <h3>Визуальный разбор</h3>
+      <div class="cvwrap chk"><canvas id="anC"></canvas></div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <h3>Метрики</h3>
+      <div class="met" id="mets"></div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <h3>Интерпретация (локальный движок)</h3>
+      <pre class="rep" id="report">Сначала вырежьте подпись на вкладке 1.</pre>
+      <div class="btns">
+        <button class="b" id="askAI">🤖 Спросить vision-модель</button>
+        <span class="tag" id="aiState">модель не настроена</span>
+      </div>
+      <pre class="rep" id="aiOut" style="display:none"></pre>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ============ 3. СРАВНЕНИЕ ============ -->
+<section id="t-cmp">
+  <div class="card">
+    <h3>Верификация: эталон vs. проверяемая подпись</h3>
+    <p style="color:var(--mut);font-size:13px;max-width:860px">
+      Так работает автоматическая проверка подписи в банках и СЭД: изображение сводится к вектору признаков,
+      затем считается расстояние до эталона. Сохраните эталон на вкладке «Анализ», затем загрузите и
+      проанализируйте вторую подпись — здесь появится сходство.
+    </p>
+    <div class="flex" style="margin:14px 0">
+      <div class="cvwrap chk" style="width:46%"><div class="k" style="color:var(--mut);font-size:11px">ЭТАЛОН</div><canvas id="refC"></canvas></div>
+      <div class="cvwrap chk" style="width:46%"><div class="k" style="color:var(--mut);font-size:11px">ТЕКУЩАЯ</div><canvas id="curC"></canvas></div>
+    </div>
+    <div class="met" id="cmpMet"></div>
+    <pre class="rep" id="cmpRep">Нет эталона.</pre>
+  </div>
+</section>
+
+<!-- ============ 4. ВСТАВКА ============ -->
+<section id="t-ins">
+<div class="grid">
+  <div>
+    <div class="card">
+      <h3>Документ-приёмник</h3>
+      <div class="drop" id="drop2">Перетащите или кликните: страница, куда ставим подпись</div>
+      <input type="file" id="file2" accept="image/*" hidden>
+      <label class="row">Масштаб <b id="vSc">100%</b><input type="range" id="sSc" min="5" max="300" value="100"></label>
+      <label class="row">Поворот <b id="vRo">0°</b><input type="range" id="sRo" min="-30" max="30" value="0" step="0.5"></label>
+      <label class="row">Непрозрачность <b id="vOp">100%</b><input type="range" id="sOp" min="10" max="100" value="100"></label>
+      <div class="sw"><input type="checkbox" id="cMul" checked><span>режим «multiply» (чернила ложатся на бумагу)</span></div>
+      <div class="sw"><input type="checkbox" id="cMark"><span>видимая пометка «ОБРАЗЕЦ / DEMO»</span></div>
+      <small class="h">Тяните подпись мышью по документу, колесо мыши — масштаб.</small>
+      <div class="btns">
+        <button class="b" id="dlComp">⬇ Скачать документ с подписью</button>
+        <button class="b g" id="cpComp">📋 Копировать</button>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Холст</h3>
+    <div class="cvwrap"><canvas id="docC"></canvas></div>
+  </div>
+</div>
+</section>
+
+<!-- ============ 5. ИИ ============ -->
+<section id="t-ai">
+  <div class="card" style="max-width:820px">
+    <h3>Подключение языковой модели со зрением</h3>
+    <label class="row">Режим
+      <select id="aiMode">
+        <option value="ollama">Локально: Ollama (/api/generate)</option>
+        <option value="openai">OpenAI-совместимый (/v1/chat/completions) — LM Studio, llama.cpp, vLLM, OpenAI…</option>
+        <option value="off">Выключено (только локальный CV-движок)</option>
+      </select></label>
+    <label class="row">Endpoint<input type="text" id="aiUrl" value="http://localhost:11434/api/generate"></label>
+    <label class="row">Модель<input type="text" id="aiModel" value="llava:13b"></label>
+    <label class="row">API-ключ (если нужен)<input type="password" id="aiKey" placeholder="не требуется для локальных"></label>
+    <label class="row">Системная инструкция
+      <textarea id="aiPrompt" rows="6">Ты — эксперт по почерковедению и компьютерному зрению. Тебе дают изображение подписи и численные метрики, посчитанные локальным алгоритмом. Опиши: 1) структуру подписи (из каких элементов состоит, где начинается и заканчивается, сколько отрывов пера); 2) динамику письма — наклон, нажим, скорость, ритм, дрожание; 3) индивидуальные признаки, которые использовал бы верификатор; 4) что в этом снимке мешает автоматическому анализу (фон, линовка, печать, сжатие). Отвечай по-русски, структурно, без выводов о подлинности конкретного человека.</textarea></label>
+    <div class="btns"><button class="b g" id="aiTest">Проверить соединение</button><button class="b g" id="aiSave">Сохранить настройки</button></div>
+    <pre class="rep" id="aiLog">Для Ollama: запустите «OLLAMA_ORIGINS=* ollama serve» и «ollama pull llava:13b» (или qwen2.5vl:7b, minicpm-v, moondream).
+Для LM Studio: включите локальный сервер, endpoint http://localhost:1234/v1/chat/completions, модель — любая vision.
+Без модели приложение полностью работоспособно: весь анализ считается локально в браузере.</pre>
+  </div>
+</section>
+
+</main>
 
 <script>
-// ==================== GLOBALS ====================
-let originalImageData = null;
-let analysisResults = null;
-let extractedImageData = null;
-let sigElements = [];
+/* ===================== УТИЛИТЫ ===================== */
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const clamp=(v,a,b)=>v<a?a:(v>b?b:v);
+const setStatus=t=>$('#status').textContent=t;
 
-// ==================== TAB SWITCHING ====================
-function switchTab(tabName) {
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.getElementById('panel-' + tabName).classList.add('active');
-  event.target.closest('.tab').classList.add('active');
+function loadImage(src){return new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.crossOrigin='anonymous';i.src=src;});}
+function fileToImage(f){return new Promise(res=>{const r=new FileReader();r.onload=e=>res(loadImage(e.target.result));r.readAsDataURL(f);}).then(p=>p);}
+function newCanvas(w,h){const c=document.createElement('canvas');c.width=w;c.height=h;return c;}
+function imgToCanvas(img,maxDim){
+  let w=img.naturalWidth,h=img.naturalHeight;
+  const s=Math.min(1,maxDim/Math.max(w,h)); w=Math.max(1,Math.round(w*s)); h=Math.max(1,Math.round(h*s));
+  const c=newCanvas(w,h); c.getContext('2d').drawImage(img,0,0,w,h); return c;
 }
+function download(url,name){const a=document.createElement('a');a.href=url;a.download=name;a.click();}
 
-// ==================== UPLOAD ====================
-const uploadZone = document.getElementById('uploadZone');
-const fileInput = document.getElementById('fileInput');
-
-uploadZone.addEventListener('dragover', (e) => {
-  e.preventDefault();
-  uploadZone.classList.add('dragover');
-});
-uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
-uploadZone.addEventListener('drop', (e) => {
-  e.preventDefault();
-  uploadZone.classList.remove('dragover');
-  if (e.dataTransfer.files.length) loadImage(e.dataTransfer.files[0]);
-});
-fileInput.addEventListener('change', (e) => {
-  if (e.target.files.length) loadImage(e.target.files[0]);
-});
-
-function loadImage(file) {
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.getElementById('originalCanvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0);
-      originalImageData = ctx.getImageData(0, 0, img.width, img.height);
-      document.getElementById('originalPreview').classList.remove('hidden');
-      document.getElementById('quickStats').classList.remove('hidden');
-    };
-    img.src = e.target.result;
-  };
-  reader.readAsDataURL(file);
+/* интегральное изображение -> быстрый box-blur (оценка фона) */
+function integral(g,w,h){
+  const ii=new Float64Array((w+1)*(h+1));
+  for(let y=0;y<h;y++){let s=0;for(let x=0;x<w;x++){s+=g[y*w+x];ii[(y+1)*(w+1)+x+1]=ii[y*(w+1)+x+1]+s;}}
+  return ii;
 }
-
-function resetAll() {
-  originalImageData = null;
-  analysisResults = null;
-  extractedImageData = null;
-  document.getElementById('originalPreview').classList.add('hidden');
-  document.getElementById('quickStats').classList.add('hidden');
-  fileInput.value = '';
-}
-
-// ==================== ANALYSIS ====================
-function startAnalysis() {
-  if (!originalImageData) return;
-  
-  showLoading('Анализ подписи...', 'Инициализация нейросети');
-  
-  setTimeout(() => {
-    setLoadingSub('Предварительная обработка изображения');
-    const w = originalImageData.width;
-    const h = originalImageData.height;
-    
-    // 1. Grayscale
-    const gray = toGrayscale(originalImageData);
-    setLoadingSub('Бинаризация (метод Оцу)');
-    
-    // 2. Binarize
-    const threshold = otsuThreshold(gray, w, h);
-    const binary = binarize(gray, w, h, threshold);
-    setLoadingSub('Поиск компонент связности');
-    
-    // 3. Find bounding box
-    const bbox = findBoundingBox(binary, w, h);
-    setLoadingSub('Анализ штрихов и форм');
-    
-    // 4. Connected components
-    const components = findComponents(binary, w, h);
-    
-    // 5. Calculate metrics
-    const inkDensity = calcInkDensity(binary, w, h, bbox);
-    const slant = calcSlant(binary, w, h, bbox);
-    const pressure = calcPressure(binary, w, h, bbox);
-    const curvature = calcCurvature(binary, w, h, bbox);
-    const symmetry = calcSymmetry(binary, w, h, bbox);
-    const intersections = countIntersections(binary, w, h, bbox);
-    const loops = countLoops(components);
-    const complexity = calcComplexity(bbox, components, intersections, loops, curvature);
-    
-    // 6. Stroke direction analysis
-    setLoadingSub('Анализ направления штрихов');
-    const strokeData = analyzeStrokes(gray, binary, w, h, bbox);
-    
-    // 7. Edge detection
-    setLoadingSub('Детекция контуров (Sobel)');
-    const edges = sobelEdges(gray, w, h);
-    
-    // 8. Heatmap
-    setLoadingSub('Генерация тепловой карты');
-    const heatmap = generateHeatmap(binary, w, h);
-    
-    analysisResults = {
-      w, h, bbox, components, threshold,
-      inkDensity, slant, pressure, curvature, symmetry,
-      intersections, loops, complexity, strokeData, edges
-    };
-    
-    // Render visual results
-    setLoadingSub('Визуализация результатов');
-    renderBinary(binary, w, h);
-    renderHeatmap(heatmap, w, h);
-    renderStrokeDirections(strokeData, w, h, bbox);
-    renderEdges(edges, w, h);
-    
-    // Render metrics
-    renderMetrics();
-    
-    // Generate style tags
-    renderStyle();
-    
-    // Generate AI report
-    generateReport();
-    
-    // Quick stats
-    document.getElementById('qsWidth').textContent = bbox.width + 'px';
-    document.getElementById('qsHeight').textContent = bbox.height + 'px';
-    document.getElementById('qsStrokes').textContent = components.length;
-    document.getElementById('qsComplexity').textContent = complexity + '/100';
-    
-    // Auto-extract
-    setLoadingSub('Извлечение подписи');
-    extractSignature();
-    
-    hideLoading();
-    switchTab('analysis');
-    // Force tab click visual update
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab')[1].classList.add('active');
-  }, 800);
-}
-
-// ==================== IMAGE PROCESSING ALGORITHMS ====================
-function toGrayscale(imgData) {
-  const d = new Uint8ClampedArray(imgData.data);
-  for (let i = 0; i < d.length; i += 4) {
-    const g = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
-    d[i] = d[i+1] = d[i+2] = g;
-    d[i+3] = 255;
+function boxBlur(g,w,h,r){
+  const ii=integral(g,w,h),out=new Float32Array(w*h);
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+    const x0=clamp(x-r,0,w-1),x1=clamp(x+r,0,w-1),y0=clamp(y-r,0,h-1),y1=clamp(y+r,0,h-1);
+    const A=ii[y0*(w+1)+x0],B=ii[y0*(w+1)+x1+1],C=ii[(y1+1)*(w+1)+x0],D=ii[(y1+1)*(w+1)+x1+1];
+    out[y*w+x]=(D-B-C+A)/((x1-x0+1)*(y1-y0+1));
   }
+  return out;
+}
+function otsu(vals){
+  const hist=new Float64Array(256); for(let i=0;i<vals.length;i++)hist[clamp(Math.round(vals[i]),0,255)]++;
+  const total=vals.length; let sum=0; for(let i=0;i<256;i++)sum+=i*hist[i];
+  let sumB=0,wB=0,best=0,thr=128;
+  for(let t=0;t<256;t++){wB+=hist[t];if(!wB)continue;const wF=total-wB;if(!wF)break;
+    sumB+=t*hist[t];const mB=sumB/wB,mF=(sum-sumB)/wF,v=wB*wF*(mB-mF)*(mB-mF);
+    if(v>best){best=v;thr=t;}}
+  return thr;
+}
+/* связные компоненты (8-связность) */
+function components(bin,w,h){
+  const labels=new Int32Array(w*h).fill(-1),sizes=[],boxes=[],stack=new Int32Array(w*h);let n=0;
+  for(let i=0;i<w*h;i++){
+    if(!bin[i]||labels[i]>=0)continue;
+    let sp=0;stack[sp++]=i;labels[i]=n;let cnt=0,x0=1e9,y0=1e9,x1=-1,y1=-1;
+    while(sp){const p=stack[--sp];cnt++;const x=p%w,y=(p-x)/w;
+      if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;
+      for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+        if(!dx&&!dy)continue;const nx=x+dx,ny=y+dy;
+        if(nx<0||ny<0||nx>=w||ny>=h)continue;const q=ny*w+nx;
+        if(bin[q]&&labels[q]<0){labels[q]=n;stack[sp++]=q;}
+      }}
+    sizes.push(cnt);boxes.push({x0,y0,x1,y1});n++;
+  }
+  return {labels,sizes,boxes,n};
+}
+/* скелетизация Чжана–Суэня */
+function zhangSuen(bin,w,h){
+  const img=Uint8Array.from(bin);let changed=true,guard=0;const del=[];
+  while(changed&&guard++<150){
+    changed=false;
+    for(let step=0;step<2;step++){
+      del.length=0;
+      for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){
+        const i=y*w+x; if(!img[i])continue;
+        const p2=img[i-w],p3=img[i-w+1],p4=img[i+1],p5=img[i+w+1],p6=img[i+w],p7=img[i+w-1],p8=img[i-1],p9=img[i-w-1];
+        const B=p2+p3+p4+p5+p6+p7+p8+p9; if(B<2||B>6)continue;
+        const s=[p2,p3,p4,p5,p6,p7,p8,p9,p2];let A=0;
+        for(let k=0;k<8;k++)if(s[k]===0&&s[k+1]===1)A++;
+        if(A!==1)continue;
+        if(step===0){if(p2*p4*p6)continue;if(p4*p6*p8)continue;}
+        else{if(p2*p4*p8)continue;if(p2*p6*p8)continue;}
+        del.push(i);
+      }
+      if(del.length){changed=true;for(const i of del)img[i]=0;}
+    }
+  }
+  return img;
+}
+/* дистанционное преобразование (chamfer 1 / 1.414) */
+function distTransform(bin,w,h){
+  const INF=1e9,d=new Float32Array(w*h);
+  for(let i=0;i<w*h;i++)d[i]=bin[i]?INF:0;
+  const at=(x,y)=>(x<0||y<0||x>=w||y>=h)?0:d[y*w+x];
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=y*w+x;if(!d[i])continue;
+    d[i]=Math.min(d[i],at(x-1,y)+1,at(x,y-1)+1,at(x-1,y-1)+1.4142,at(x+1,y-1)+1.4142);}
+  for(let y=h-1;y>=0;y--)for(let x=w-1;x>=0;x--){const i=y*w+x;if(!d[i])continue;
+    d[i]=Math.min(d[i],at(x+1,y)+1,at(x,y+1)+1,at(x+1,y+1)+1.4142,at(x-1,y+1)+1.4142);}
   return d;
 }
-
-function otsuThreshold(gray, w, h) {
-  const histogram = new Array(256).fill(0);
-  const total = w * h;
-  for (let i = 0; i < gray.length; i += 4) histogram[gray[i]]++;
-  
-  let sum = 0;
-  for (let i = 0; i < 256; i++) sum += i * histogram[i];
-  
-  let sumB = 0, wB = 0, wF = 0;
-  let maxVar = 0, thresh = 127;
-  
-  for (let t = 0; t < 256; t++) {
-    wB += histogram[t];
-    if (wB === 0) continue;
-    wF = total - wB;
-    if (wF === 0) break;
-    sumB += t * histogram[t];
-    const mB = sumB / wB;
-    const mF = (sum - sumB) / wF;
-    const v = wB * wF * (mB - mF) * (mB - mF);
-    if (v > maxVar) { maxVar = v; thresh = t; }
+function rdp(pts,eps){
+  if(pts.length<3)return pts;
+  let max=0,idx=0;const [ax,ay]=pts[0],[bx,by]=pts[pts.length-1];
+  const dx=bx-ax,dy=by-ay,len=Math.hypot(dx,dy)||1;
+  for(let i=1;i<pts.length-1;i++){
+    const d=Math.abs(dy*pts[i][0]-dx*pts[i][1]+bx*ay-by*ax)/len;
+    if(d>max){max=d;idx=i;}
   }
-  return thresh;
+  if(max>eps){const l=rdp(pts.slice(0,idx+1),eps),r=rdp(pts.slice(idx),eps);return l.slice(0,-1).concat(r);}
+  return [pts[0],pts[pts.length-1]];
 }
 
-function binarize(gray, w, h, thresh) {
-  const result = new Uint8ClampedArray(gray.length);
-  for (let i = 0; i < gray.length; i += 4) {
-    const v = gray[i] < thresh ? 0 : 255;
-    result[i] = result[i+1] = result[i+2] = v;
-    result[i+3] = 255;
-  }
-  return result;
-}
+/* ===================== СОСТОЯНИЕ ===================== */
+const S={src:null,crop:null,out:null,an:null,ref:null,doc:null,
+  place:{x:0,y:0,scale:1,rot:0},traces:[],anim:null};
 
-function findBoundingBox(binary, w, h) {
-  let minX = w, minY = h, maxX = 0, maxY = 0;
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const idx = (y * w + x) * 4;
-      if (binary[idx] < 128) {
-        if (x < minX) minX = x;
-        if (x > maxX) maxX = x;
-        if (y < minY) minY = y;
-        if (y > maxY) maxY = y;
-      }
+/* ===================== ВКЛАДКИ ===================== */
+$$('nav button').forEach(b=>b.addEventListener('click',()=>{
+  $$('nav button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+  $$('main section').forEach(s=>s.classList.remove('on'));$('#t-'+b.dataset.t).classList.add('on');
+}));
+function goTab(t){$$('nav button').forEach(b=>{if(b.dataset.t===t)b.click();});}
+
+/* ===================== 1. ЗАГРУЗКА ===================== */
+const srcC=$('#srcC'),sctx=srcC.getContext('2d');
+function wireDrop(dropEl,inputEl,cb){
+  dropEl.addEventListener('click',()=>inputEl.click());
+  inputEl.addEventListener('change',e=>{if(e.target.files[0])cb(e.target.files[0]);});
+  ['dragenter','dragover'].forEach(ev=>dropEl.addEventListener(ev,e=>{e.preventDefault();dropEl.classList.add('hot');}));
+  ['dragleave','drop'].forEach(ev=>dropEl.addEventListener(ev,e=>{e.preventDefault();dropEl.classList.remove('hot');}));
+  dropEl.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];if(f)cb(f);});
+}
+wireDrop($('#drop'),$('#file'),loadSource);
+wireDrop($('#drop2'),$('#file2'),loadDoc);
+window.addEventListener('paste',e=>{
+  for(const it of e.clipboardData.items) if(it.type.startsWith('image/')) loadSource(it.getAsFile());
+});
+async function loadSource(f){
+  const img=await fileToImage(f);
+  S.src=imgToCanvas(img,1800);
+  S.crop={x:0,y:0,w:S.src.width,h:S.src.height};
+  drawSrc(); setStatus('снимок загружен: '+S.src.width+'×'+S.src.height);
+}
+function drawSrc(){
+  if(!S.src)return;
+  srcC.width=S.src.width;srcC.height=S.src.height;
+  sctx.drawImage(S.src,0,0);
+  const c=S.crop;
+  sctx.save();sctx.fillStyle='rgba(8,10,14,.62)';
+  sctx.fillRect(0,0,srcC.width,c.y);
+  sctx.fillRect(0,c.y+c.h,srcC.width,srcC.height-c.y-c.h);
+  sctx.fillRect(0,c.y,c.x,c.h);
+  sctx.fillRect(c.x+c.w,c.y,srcC.width-c.x-c.w,c.h);
+  sctx.strokeStyle='#5aa9ff';sctx.lineWidth=Math.max(1.5,S.src.width/700);sctx.setLineDash([8,6]);
+  sctx.strokeRect(c.x,c.y,c.w,c.h);sctx.restore();
+}
+let dragging=null;
+function cpos(e,cv){const r=cv.getBoundingClientRect();return{
+  x:(e.clientX-r.left)*cv.width/r.width, y:(e.clientY-r.top)*cv.height/r.height};}
+srcC.addEventListener('pointerdown',e=>{if(!S.src)return;srcC.setPointerCapture(e.pointerId);
+  const p=cpos(e,srcC);dragging={x0:p.x,y0:p.y};});
+srcC.addEventListener('pointermove',e=>{if(!dragging)return;const p=cpos(e,srcC);
+  S.crop={x:Math.round(Math.min(dragging.x0,p.x)),y:Math.round(Math.min(dragging.y0,p.y)),
+          w:Math.round(Math.abs(p.x-dragging.x0)),h:Math.round(Math.abs(p.y-dragging.y0))};drawSrc();});
+srcC.addEventListener('pointerup',()=>{dragging=null;
+  if(S.crop.w<8||S.crop.h<8){S.crop={x:0,y:0,w:S.src.width,h:S.src.height};drawSrc();}});
+$('#resetCrop').addEventListener('click',()=>{if(S.src){S.crop={x:0,y:0,w:S.src.width,h:S.src.height};drawSrc();}});
+
+/* авто-поиск подписи: убираем линовку, кластеризуем «рукописные» компоненты */
+$('#autoFind').addEventListener('click',()=>{
+  if(!S.src)return alert('Сначала загрузите снимок');
+  setStatus('ищу подпись…');
+  const W=S.src.width,H=S.src.height,k=Math.min(1,900/Math.max(W,H));
+  const w=Math.round(W*k),h=Math.round(H*k),c=newCanvas(w,h);
+  c.getContext('2d').drawImage(S.src,0,0,w,h);
+  const d=c.getContext('2d').getImageData(0,0,w,h).data;
+  const g=new Float32Array(w*h);
+  for(let i=0;i<w*h;i++)g[i]=.299*d[i*4]+.587*d[i*4+1]+.114*d[i*4+2];
+  const bg=boxBlur(g,w,h,Math.round(Math.max(w,h)/22));
+  const corr=new Float32Array(w*h);
+  for(let i=0;i<w*h;i++)corr[i]=clamp(g[i]/Math.max(bg[i],1)*235,0,255);
+  const t=otsu(corr),bin=new Uint8Array(w*h);
+  for(let i=0;i<w*h;i++)bin[i]=corr[i]<t-4?1:0;
+  // убрать длинные линии (линовка, рамки таблиц)
+  for(let y=0;y<h;y++){let run=0;for(let x=0;x<=w;x++){const v=x<w?bin[y*w+x]:0;
+    if(v)run++;else{if(run>w*0.22)for(let i=x-run;i<x;i++)bin[y*w+i]=0;run=0;}}}
+  for(let x=0;x<w;x++){let run=0;for(let y=0;y<=h;y++){const v=y<h?bin[y*w+x]:0;
+    if(v)run++;else{if(run>h*0.22)for(let i=y-run;i<y;i++)bin[i*w+x]=0;run=0;}}}
+  const cc=components(bin,w,h);
+  const items=[];
+  for(let i=0;i<cc.n;i++){const b=cc.boxes[i],bw=b.x1-b.x0+1,bh=b.y1-b.y0+1;
+    if(cc.sizes[i]<Math.max(10,w*h*0.00002))continue;
+    if(bh>h*0.5||bw>w*0.85)continue;
+    items.push({b,sz:cc.sizes[i],bw,bh});}
+  if(!items.length)return setStatus('подпись не найдена — выделите вручную');
+  const medH=items.map(i=>i.bh).sort((a,b)=>a-b)[Math.floor(items.length/2)];
+  const gap=Math.max(10,medH*1.4);
+  // кластеризация по близости
+  const used=new Array(items.length).fill(false),clusters=[];
+  for(let i=0;i<items.length;i++){
+    if(used[i])continue;const q=[i];used[i]=true;const cl=[];
+    while(q.length){const j=q.pop();cl.push(items[j]);
+      for(let m=0;m<items.length;m++){if(used[m])continue;
+        const A=items[j].b,B=items[m].b;
+        const dx=Math.max(0,Math.max(A.x0-B.x1,B.x0-A.x1)),dy=Math.max(0,Math.max(A.y0-B.y1,B.y0-A.y1));
+        if(dx<gap&&dy<gap*0.9){used[m]=true;q.push(m);} }}
+    clusters.push(cl);
+  }
+  let best=null,bs=-1;
+  for(const cl of clusters){
+    let x0=1e9,y0=1e9,x1=-1,y1=-1,ink=0;
+    for(const it of cl){x0=Math.min(x0,it.b.x0);y0=Math.min(y0,it.b.y0);x1=Math.max(x1,it.b.x1);y1=Math.max(y1,it.b.y1);ink+=it.sz;}
+    const bw=x1-x0+1,bh=y1-y0+1,ar=bw/bh;
+    const lower=(y0+y1)/2/h;                       // подписи обычно ниже
+    const bigStrokes=ink/cl.length/Math.max(1,medH); // длинные слитные штрихи
+    const arF=clamp(ar/4,0.15,1.2);
+    const s=ink*(0.45+lower)*arF*clamp(bigStrokes/3,0.4,2.2);
+    if(s>bs){bs=s;best={x0,y0,x1,y1};}
+  }
+  const pad=Math.round(medH*0.8);
+  S.crop={x:Math.round(Math.max(0,best.x0-pad)/k),y:Math.round(Math.max(0,best.y0-pad)/k),
+          w:Math.round((best.x1-best.x0+1+2*pad)/k),h:Math.round((best.y1-best.y0+1+2*pad)/k)};
+  S.crop.w=Math.min(S.crop.w,S.src.width-S.crop.x);S.crop.h=Math.min(S.crop.h,S.src.height-S.crop.y);
+  drawSrc();setStatus('кандидат найден — поправьте рамку при необходимости');
+});
+
+/* ===================== ВЫРЕЗАНИЕ ЧЕРНИЛ ===================== */
+['sBg','sTh','sSo','sCo','sNo'].forEach(id=>{
+  const el=$('#'+id),lbl=$('#v'+id.slice(1));
+  const upd=()=>lbl.textContent=el.value+(id==='sSc'?'%':'');
+  el.addEventListener('input',upd);upd();
+});
+$('#doExtract').addEventListener('click',extract);
+['cOnlyBig','cRecolor','cBoost','inkColor'].forEach(id=>$('#'+id).addEventListener('change',()=>{if(S.src)extract();}));
+
+function extract(){
+  if(!S.src)return alert('Сначала загрузите снимок');
+  setStatus('вырезаю чернила…');
+  const c=S.crop,maxD=1500,k=Math.min(1,maxD/Math.max(c.w,c.h));
+  const w=Math.max(4,Math.round(c.w*k)),h=Math.max(4,Math.round(c.h*k));
+  const cv=newCanvas(w,h),cx=cv.getContext('2d');
+  cx.drawImage(S.src,c.x,c.y,c.w,c.h,0,0,w,h);
+  const id=cx.getImageData(0,0,w,h),D=id.data;
+  const g=new Float32Array(w*h),sat=new Float32Array(w*h);
+  for(let i=0;i<w*h;i++){
+    const r=D[i*4],gg=D[i*4+1],b=D[i*4+2];
+    g[i]=.299*r+.587*gg+.114*b;
+    sat[i]=Math.max(r,gg,b)-Math.min(r,gg,b);
+  }
+  const R=+$('#sBg').value, bg=boxBlur(g,w,h,Math.max(2,Math.round(R*Math.max(w,h)/600)));
+  const satW=(+$('#sCo').value)/100, adj=new Float32Array(w*h);
+  for(let i=0;i<w*h;i++) adj[i]=clamp(g[i]/Math.max(bg[i],1)*235 - satW*sat[i],0,255);
+  const T=otsu(adj)+(+$('#sTh').value), soft=Math.max(1,+$('#sSo').value);
+  const alpha=new Float32Array(w*h);
+  for(let i=0;i<w*h;i++) alpha[i]=clamp((T+soft-adj[i])/(2*soft),0,1);
+  // шумоподавление
+  const bin=new Uint8Array(w*h);for(let i=0;i<w*h;i++)bin[i]=alpha[i]>0.45?1:0;
+  const cc=components(bin,w,h);
+  const minA=+$('#sNo').value, onlyBig=$('#cOnlyBig').checked;
+  let keep=new Uint8Array(cc.n).fill(1);
+  let biggest=0;for(let i=1;i<cc.n;i++)if(cc.sizes[i]>cc.sizes[biggest])biggest=i;
+  for(let i=0;i<cc.n;i++){
+    if(cc.sizes[i]<minA)keep[i]=0;
+    if(onlyBig&&i!==biggest)keep[i]=0;
+  }
+  for(let i=0;i<w*h;i++){const l=cc.labels[i];if(l<0||!keep[l])alpha[i]=Math.min(alpha[i],0.0);}
+  // доливка полупрозрачных пикселей рядом с сохранёнными
+  const out=cx.createImageData(w,h),O=out.data;
+  const recol=$('#cRecolor').checked, boost=$('#cBoost').checked;
+  const ic=$('#inkColor').value, ir=parseInt(ic.substr(1,2),16),ig=parseInt(ic.substr(3,2),16),ib=parseInt(ic.substr(5,2),16);
+  let bb={x0:1e9,y0:1e9,x1:-1,y1:-1},any=false;
+  for(let i=0;i<w*h;i++){
+    let a=alpha[i];
+    if(a<=0.004){O[i*4+3]=0;continue;}
+    if(boost)a=clamp(a*1.25,0,1);
+    let r,gg,b;
+    if(recol){r=ir;gg=ig;b=ib;}
+    else{const f=boost?0.82:1; r=clamp(D[i*4]*f,0,255);gg=clamp(D[i*4+1]*f,0,255);b=clamp(D[i*4+2]*f,0,255);}
+    O[i*4]=r;O[i*4+1]=gg;O[i*4+2]=b;O[i*4+3]=Math.round(a*255);
+    const x=i%w,y=(i-x)/w;any=true;
+    if(x<bb.x0)bb.x0=x;if(x>bb.x1)bb.x1=x;if(y<bb.y0)bb.y0=y;if(y>bb.y1)bb.y1=y;
+  }
+  if(!any)return setStatus('чернила не найдены — подвиньте порог');
+  // обрезка по содержимому
+  const pad=4,bx=Math.max(0,bb.x0-pad),by=Math.max(0,bb.y0-pad),
+        bw=Math.min(w,bb.x1+pad)-bx+1,bh=Math.min(h,bb.y1+pad)-by+1;
+  const tmp=newCanvas(w,h);tmp.getContext('2d').putImageData(out,0,0);
+  const fin=newCanvas(bw,bh);fin.getContext('2d').drawImage(tmp,bx,by,bw,bh,0,0,bw,bh);
+  S.out=fin;
+  const oc=$('#outC');oc.width=bw;oc.height=bh;oc.getContext('2d').clearRect(0,0,bw,bh);
+  oc.getContext('2d').drawImage(fin,0,0);
+  setStatus('вырезано: '+bw+'×'+bh+' px');
+  analyze();
+  drawDoc();
+}
+$('#toAnalyze').addEventListener('click',()=>{if(!S.out)extract();goTab('an');});
+
+/* ===================== 2. АНАЛИЗ ===================== */
+function analyze(){
+  if(!S.out)return;
+  setStatus('анализирую…');
+  const maxD=700,k=Math.min(1,maxD/Math.max(S.out.width,S.out.height));
+  const w=Math.max(8,Math.round(S.out.width*k)),h=Math.max(8,Math.round(S.out.height*k));
+  const cv=newCanvas(w,h),cx=cv.getContext('2d');cx.drawImage(S.out,0,0,w,h);
+  const D=cx.getImageData(0,0,w,h).data;
+  const bin=new Uint8Array(w*h),lum=[];
+  for(let i=0;i<w*h;i++){bin[i]=D[i*4+3]>120?1:0;
+    if(bin[i])lum.push(.299*D[i*4]+.587*D[i*4+1]+.114*D[i*4+2]);}
+  const ink=bin.reduce((a,b)=>a+b,0);
+  if(ink<20){setStatus('слишком мало чернил');return;}
+  const sk=zhangSuen(bin,w,h);
+  const dt=distTransform(bin,w,h);
+  const cc=components(bin,w,h);
+
+  // скелет: степени, концы, узлы
+  let skLen=0,ends=0,nodes=0;const deg=new Uint8Array(w*h);
+  for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){const i=y*w+x;if(!sk[i])continue;skLen++;
+    let n=0;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){if(!dx&&!dy)continue;if(sk[i+dy*w+dx])n++;}
+    deg[i]=n;if(n===1)ends++;if(n>=3)nodes++;}
+  // ширина штриха
+  let sw=[],swSum=0;
+  for(let i=0;i<w*h;i++)if(sk[i]){const v=dt[i]*2;sw.push(v);swSum+=v;}
+  const swMean=swSum/Math.max(1,sw.length);
+  const swStd=Math.sqrt(sw.reduce((a,v)=>a+(v-swMean)**2,0)/Math.max(1,sw.length));
+  // наклон: локальная PCA по скелету
+  const pts=[];for(let i=0;i<w*h;i++)if(sk[i])pts.push([i%w,(i-i%w)/w]);
+  const grid=new Map();pts.forEach(p=>{const key=(p[1]>>2)*10000+(p[0]>>2);if(!grid.has(key))grid.set(key,[]);grid.get(key).push(p);});
+  let sx2=0,sy2=0,sxy=0,angs=[];
+  for(const p of pts){
+    let mx=0,my=0,n=0,ax=0,ay=0,axy=0;const R=4;
+    for(let dy=-R;dy<=R;dy++)for(let dx=-R;dx<=R;dx++){
+      const x=p[0]+dx,y=p[1]+dy;if(x<0||y<0||x>=w||y>=h)continue;
+      if(sk[y*w+x]){mx+=x;my+=y;n++;}}
+    if(n<4)continue;mx/=n;my/=n;
+    for(let dy=-R;dy<=R;dy++)for(let dx=-R;dx<=R;dx++){
+      const x=p[0]+dx,y=p[1]+dy;if(x<0||y<0||x>=w||y>=h)continue;
+      if(sk[y*w+x]){ax+=(x-mx)**2;ay+=(y-my)**2;axy+=(x-mx)*(y-my);}}
+    ax/=n;ay/=n;axy/=n;
+    const th=0.5*Math.atan2(2*axy,ax-ay);
+    const ecc=Math.hypot(ax-ay,2*axy)/Math.max(1e-6,ax+ay);
+    if(ecc>0.4){angs.push(th);sx2+=Math.cos(2*th);sy2+=Math.sin(2*th);}
+  }
+  const domAng=0.5*Math.atan2(sy2,sx2)*180/Math.PI;        // −90..90, 0 = горизонталь
+  // наклон «почерка»: усредняем направления близкие к вертикали
+  let vx=0,vy=0,vn=0;
+  for(const a of angs){const deg2=a*180/Math.PI;const abs=Math.abs(deg2);
+    if(abs>40){vx+=Math.cos(2*a);vy+=Math.sin(2*a);vn++;}}
+  let slant=0;
+  if(vn>8){const m=0.5*Math.atan2(vy,vx)*180/Math.PI;slant=(m>0?90-m:-90-m);} // + вправо
+  // базовая линия: нижняя огибающая
+  const low=[];for(let x=0;x<w;x++){for(let y=h-1;y>=0;y--)if(bin[y*w+x]){low.push([x,y]);break;}}
+  let base=0,baseLine=null;
+  if(low.length>5){
+    const n=low.length,mx=low.reduce((a,p)=>a+p[0],0)/n,my=low.reduce((a,p)=>a+p[1],0)/n;
+    let num=0,den=0;for(const p of low){num+=(p[0]-mx)*(p[1]-my);den+=(p[0]-mx)**2;}
+    const sl=num/Math.max(1e-6,den);base=-Math.atan(sl)*180/Math.PI;
+    baseLine={a:sl,b:my-sl*mx};
+  }
+  // петли (отверстия)
+  const bgm=new Uint8Array(w*h);for(let i=0;i<w*h;i++)bgm[i]=bin[i]?0:1;
+  const st=[];for(let x=0;x<w;x++){st.push(x);st.push((h-1)*w+x);}for(let y=0;y<h;y++){st.push(y*w);st.push(y*w+w-1);}
+  const seen=new Uint8Array(w*h);const stk=[];
+  for(const i of st)if(bgm[i]&&!seen[i]){seen[i]=1;stk.push(i);}
+  while(stk.length){const p=stk.pop(),x=p%w,y=(p-x)/w;
+    [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>{const nx=x+dx,ny=y+dy;
+      if(nx<0||ny<0||nx>=w||ny>=h)return;const q=ny*w+nx;if(bgm[q]&&!seen[q]){seen[q]=1;stk.push(q);}});}
+  const holesMask=new Uint8Array(w*h);for(let i=0;i<w*h;i++)holesMask[i]=(bgm[i]&&!seen[i])?1:0;
+  const hcc=components(holesMask,w,h);let loops=0;for(let i=0;i<hcc.n;i++)if(hcc.sizes[i]>Math.max(6,swMean*swMean*0.6))loops++;
+  // фрактальная размерность (box counting по скелету)
+  let fd=0;{const sizes=[2,3,4,6,8,12,16,24],X=[],Y=[];
+    for(const s of sizes){const set=new Set();for(const p of pts)set.add(((p[1]/s)|0)*99991+((p[0]/s)|0));
+      if(set.size>0){X.push(Math.log(1/s));Y.push(Math.log(set.size));}}
+    const n=X.length,mx=X.reduce((a,b)=>a+b,0)/n,my=Y.reduce((a,b)=>a+b,0)/n;
+    let nu=0,de=0;for(let i=0;i<n;i++){nu+=(X[i]-mx)*(Y[i]-my);de+=(X[i]-mx)**2;}fd=nu/de;}
+  // трассировка штрихов
+  const traces=traceSkeleton(sk,deg,w,h).map(p=>rdp(p,1.1)).filter(p=>p.length>1);
+  traces.sort((a,b)=>a[0][0]-b[0][0]);
+  // кривизна / тремор
+  let curvSum=0,curvN=0,revers=0,pathLen=0;
+  for(const tr of traces){
+    const rs=resample(tr,3);let prev=null,prevS=0;
+    for(let i=1;i<rs.length;i++)pathLen+=Math.hypot(rs[i][0]-rs[i-1][0],rs[i][1]-rs[i-1][1]);
+    for(let i=1;i<rs.length-1;i++){
+      const a1=Math.atan2(rs[i][1]-rs[i-1][1],rs[i][0]-rs[i-1][0]);
+      const a2=Math.atan2(rs[i+1][1]-rs[i][1],rs[i+1][0]-rs[i][0]);
+      let d=a2-a1;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;
+      curvSum+=Math.abs(d);curvN++;
+      const s=Math.sign(d);if(prev!==null&&s!==0&&s!==prevS&&Math.abs(d)>0.25)revers++;
+      if(s!==0){prevS=s;prev=1;}
     }
   }
-  if (maxX < minX) { minX = 0; minY = 0; maxX = w-1; maxY = h-1; }
-  // Add padding
-  const pad = 5;
-  return {
-    minX: Math.max(0, minX - pad),
-    minY: Math.max(0, minY - pad),
-    maxX: Math.min(w-1, maxX + pad),
-    maxY: Math.min(h-1, maxY + pad),
-    width: maxX - minX + 2*pad,
-    height: maxY - minY + 2*pad
+  const curvMean=curvSum/Math.max(1,curvN);
+  const tremor=revers/Math.max(1,pathLen/100);
+  // прочее
+  const lumMean=lum.reduce((a,b)=>a+b,0)/Math.max(1,lum.length);
+  const lumStd=Math.sqrt(lum.reduce((a,v)=>a+(v-lumMean)**2,0)/Math.max(1,lum.length));
+  const aspect=w/h, density=ink/(w*h), diag=Math.hypot(w,h);
+  const strokes=cc.n;
+  const complexity=skLen/diag;
+  // центр масс
+  let cmx=0,cmy=0;for(let i=0;i<w*h;i++)if(bin[i]){cmx+=i%w;cmy+=(i-i%w)/w;}
+  cmx/=ink;cmy/=ink;
+
+  const M={w,h,ink,skLen,strokes,ends,nodes,loops,swMean,swStd,
+    swVar:swStd/Math.max(.01,swMean),slant,domAng,base,aspect,density,fd,
+    curvMean,tremor,lumMean,lumStd,complexity,cmx:cmx/w,cmy:cmy/h,pathLen};
+  S.an={M,w,h,bin,sk,dt,deg,traces,baseLine,cv};
+  S.traces=traces;
+  renderAnalysis();
+  setStatus('анализ готов');
+}
+function resample(pts,step){
+  const out=[pts[0]];let acc=0;
+  for(let i=1;i<pts.length;i++){
+    let [x0,y0]=out[out.length-1],[x1,y1]=pts[i];
+    let d=Math.hypot(x1-x0,y1-y0);
+    while(d>=step){const t=step/d;const nx=x0+(x1-x0)*t,ny=y0+(y1-y0)*t;out.push([nx,ny]);x0=nx;y0=ny;d=Math.hypot(x1-x0,y1-y0);}
+  }
+  return out.length>1?out:pts;
+}
+function traceSkeleton(sk,deg,w,h){
+  const used=new Uint8Array(w*h),res=[];
+  const starts=[];
+  for(let i=0;i<w*h;i++)if(sk[i]&&deg[i]===1)starts.push(i);
+  starts.sort((a,b)=>(a%w)-(b%w));
+  const walk=(start)=>{
+    let cx=start%w,cy=(start-start%w)/w,px=-1,py=-1;
+    const pts=[[cx,cy]];used[start]=1;
+    for(let guard=0;guard<40000;guard++){
+      let best=null,bestD=-2;
+      for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+        if(!dx&&!dy)continue;const nx=cx+dx,ny=cy+dy;
+        if(nx<0||ny<0||nx>=w||ny>=h)continue;const q=ny*w+nx;
+        if(!sk[q]||used[q])continue;
+        let dot=0;
+        if(px>=0){const vx=cx-px,vy=cy-py,l1=Math.hypot(vx,vy)||1,l2=Math.hypot(dx,dy)||1;
+          dot=(vx*dx+vy*dy)/(l1*l2);} else dot=0.5;
+        if(dot>bestD){bestD=dot;best=[nx,ny,q];}
+      }
+      if(!best)break;
+      used[best[2]]=1;px=cx;py=cy;cx=best[0];cy=best[1];pts.push([cx,cy]);
+    }
+    if(pts.length>2)res.push(pts);
   };
+  starts.forEach(s=>{if(!used[s])walk(s);});
+  for(let i=0;i<w*h;i++)if(sk[i]&&!used[i])walk(i);   // замкнутые петли
+  return res;
 }
 
-function findComponents(binary, w, h) {
-  const visited = new Uint8Array(w * h);
-  const components = [];
-  
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const idx = y * w + x;
-      if (binary[idx * 4] < 128 && !visited[idx]) {
-        const comp = [];
-        const queue = [idx];
-        visited[idx] = 1;
-        
-        while (queue.length > 0) {
-          const ci = queue.shift();
-          const cx = ci % w, cy = Math.floor(ci / w);
-          comp.push([cx, cy]);
-          
-          for (let dy = -1; dy <= 1; dy++) {
-            for (let dx = -1; dx <= 1; dx++) {
-              const nx = cx + dx, ny = cy + dy;
-              if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
-                const ni = ny * w + nx;
-                if (binary[ni * 4] < 128 && !visited[ni]) {
-                  visited[ni] = 1;
-                  queue.push(ni);
-                }
-              }
-            }
-          }
-        }
-        
-        if (comp.length > 20) {
-          let cminX = w, cminY = h, cmaxX = 0, cmaxY = 0;
-          for (const [px, py] of comp) {
-            if (px < cminX) cminX = px;
-            if (px > cmaxX) cmaxX = px;
-            if (py < cminY) cminY = py;
-            if (py > cmaxY) cmaxY = py;
-          }
-          components.push({
-            pixels: comp,
-            size: comp.length,
-            bbox: { minX: cminX, minY: cminY, maxX: cmaxX, maxY: cmaxY },
-            width: cmaxX - cminX,
-            height: cmaxY - cminY
-          });
-        }
-      }
-    }
+/* --- отрисовка анализа --- */
+const anC=$('#anC');
+['oSkel','oPts','oBase','oWidth'].forEach(id=>$('#'+id).addEventListener('change',renderAnalysis));
+$('#reAnalyze').addEventListener('click',analyze);
+function renderAnalysis(){
+  if(!S.an)return;
+  const {w,h,sk,dt,deg,baseLine,M}=S.an;
+  const sc=Math.max(1,Math.min(2.2,760/w));
+  anC.width=Math.round(w*sc);anC.height=Math.round(h*sc);
+  const c=anC.getContext('2d');c.clearRect(0,0,anC.width,anC.height);
+  c.imageSmoothingQuality='high';
+  c.globalAlpha=$('#oSkel').checked?0.35:1;
+  c.drawImage(S.out,0,0,anC.width,anC.height);
+  c.globalAlpha=1;
+  if($('#oWidth').checked){
+    for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=y*w+x;if(!sk[i])continue;
+      const t=clamp(dt[i]*2/(M.swMean*2),0,1);
+      c.fillStyle=`hsla(${(1-t)*210},90%,55%,.9)`;
+      c.fillRect(x*sc-1,y*sc-1,sc+1,sc+1);}
   }
-  return components;
-}
-
-function calcInkDensity(binary, w, h, bbox) {
-  let dark = 0, total = 0;
-  for (let y = bbox.minY; y <= bbox.maxY; y++) {
-    for (let x = bbox.minX; x <= bbox.maxX; x++) {
-      total++;
-      if (binary[(y * w + x) * 4] < 128) dark++;
-    }
+  if($('#oSkel').checked){
+    c.strokeStyle='rgba(90,169,255,.95)';c.lineWidth=1.2;c.lineCap='round';c.lineJoin='round';
+    for(const tr of S.an.traces){c.beginPath();tr.forEach((p,i)=>i?c.lineTo(p[0]*sc,p[1]*sc):c.moveTo(p[0]*sc,p[1]*sc));c.stroke();}
   }
-  return total > 0 ? Math.round((dark / total) * 100) : 0;
-}
-
-function calcSlant(binary, w, h, bbox) {
-  // Analyze the slope of connected components
-  let totalAngle = 0, count = 0;
-  
-  for (let y = bbox.minY; y <= bbox.maxY; y++) {
-    for (let x = bbox.minX; x <= bbox.maxX; x++) {
-      const idx = (y * w + x) * 4;
-      if (binary[idx] < 128) {
-        // Check right neighbor
-        if (x + 1 < w && binary[(y * w + x + 1) * 4] < 128) {
-          // Check top neighbor
-          if (y > 0 && binary[((y-1) * w + x + 1) * 4] < 128) {
-            totalAngle += 1; // Right-slanting
-            count++;
-          }
-        }
-        // Check left neighbor
-        if (x > 0 && binary[(y * w + x - 1) * 4] < 128) {
-          if (y > 0 && binary[((y-1) * w + x - 1) * 4] < 128) {
-            totalAngle -= 1; // Left-slanting
-            count++;
-          }
-        }
-      }
-    }
+  if($('#oPts').checked){
+    for(let i=0;i<w*h;i++){if(!sk[i])continue;const x=i%w,y=(i-i%w)/w;
+      if(deg[i]===1){c.fillStyle='#ff6b6b';c.beginPath();c.arc(x*sc,y*sc,3.2,0,7);c.fill();}
+      else if(deg[i]>=3){c.fillStyle='#39d98a';c.beginPath();c.arc(x*sc,y*sc,2.6,0,7);c.fill();}}
   }
-  
-  if (count === 0) return 0;
-  const ratio = totalAngle / count;
-  return Math.round(ratio * 15); // Convert to approximate degrees
-}
-
-function calcPressure(binary, w, h, bbox) {
-  // Measure stroke thickness
-  let totalWidth = 0, thicknessCount = 0;
-  
-  for (let y = bbox.minY; y <= bbox.maxY; y++) {
-    let runLen = 0;
-    for (let x = bbox.minX; x <= bbox.maxX; x++) {
-      if (binary[(y * w + x) * 4] < 128) {
-        runLen++;
-      } else {
-        if (runLen > 0 && runLen < 50) {
-          totalWidth += runLen;
-          thicknessCount++;
-        }
-        runLen = 0;
-      }
-    }
-    if (runLen > 0 && runLen < 50) {
-      totalWidth += runLen;
-      thicknessCount++;
-    }
+  if($('#oBase').checked&&baseLine){
+    c.strokeStyle='rgba(255,182,72,.85)';c.setLineDash([7,5]);c.lineWidth=1.4;c.beginPath();
+    c.moveTo(0,baseLine.b*sc);c.lineTo(anC.width,(baseLine.a*w+baseLine.b)*sc);c.stroke();c.setLineDash([]);
+    // стрелка наклона
+    const a=(90-M.slant)*Math.PI/180,L=Math.min(anC.height*0.4,70);
+    c.strokeStyle='rgba(255,182,72,.95)';c.lineWidth=2;c.beginPath();
+    c.moveTo(16,anC.height-14);c.lineTo(16+Math.cos(-a)*L,anC.height-14-Math.sin(a)*L);c.stroke();
   }
-  
-  const avgThickness = thicknessCount > 0 ? totalWidth / thicknessCount : 1;
-  return Math.min(100, Math.round(avgThickness * 12));
+  renderMetrics();renderReport();renderFV();
+  const cc=$('#curC');cc.width=anC.width/2;cc.height=anC.height/2;
+  cc.getContext('2d').drawImage(S.out,0,0,cc.width,cc.height);
+  compare();
 }
-
-function calcCurvature(binary, w, h, bbox) {
-  // Count direction changes along the signature
-  let changes = 0, totalSteps = 0;
-  
-  for (let y = bbox.minY + 1; y < bbox.maxY; y++) {
-    for (let x = bbox.minX + 1; x < bbox.maxX; x++) {
-      const idx = (y * w + x) * 4;
-      if (binary[idx] < 128) {
-        const left = binary[(y * w + x - 1) * 4] < 128;
-        const right = binary[(y * w + x + 1) * 4] < 128;
-        const up = binary[((y-1) * w + x) * 4] < 128;
-        const down = binary[((y+1) * w + x) * 4] < 128;
-        
-        const hConn = left && right;
-        const vConn = up && down;
-        
-        totalSteps++;
-        if (hConn && vConn) changes++;
-        else if (hConn !== vConn) changes += 0.5;
-      }
-    }
-  }
-  
-  return totalSteps > 0 ? Math.min(100, Math.round((changes / totalSteps) * 200)) : 0;
+function cell(k,v,d){return `<div><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`;}
+function renderMetrics(){
+  const M=S.an.M;
+  $('#mets').innerHTML=
+   cell('Размер','{0}×{1}'.replace('{0}',S.out.width).replace('{1}',S.out.height),'пикселей исходного вырезa')+
+   cell('Пропорция',M.aspect.toFixed(2),'ширина / высота')+
+   cell('Плотность чернил',(M.density*100).toFixed(1)+'%','доля закрашенной площади')+
+   cell('Отрывов пера',M.strokes,'число несвязных компонент')+
+   cell('Длина линии',Math.round(M.skLen)+' px','суммарный путь пера (скелет)')+
+   cell('Толщина штриха',M.swMean.toFixed(1)+' px','средний диаметр следа пера')+
+   cell('Вариация нажима',(M.swVar*100).toFixed(0)+'%','разброс толщины; >35% — выраженный нажим')+
+   cell('Наклон',(M.slant>=0?'+':'')+M.slant.toFixed(1)+'°','+ вправо, − влево')+
+   cell('Базовая линия',(M.base>=0?'+':'')+M.base.toFixed(1)+'°','подъём/падение строки')+
+   cell('Концевых точек',M.ends,'начала и окончания штрихов')+
+   cell('Пересечений',M.nodes,'узлы — где линия себя перечёркивает')+
+   cell('Петель',M.loops,'замкнутые контуры (овалы, росчерк)')+
+   cell('Фрактальность',M.fd.toFixed(2),'1.0 — прямая, >1.3 — сложный росчерк')+
+   cell('Средняя кривизна',M.curvMean.toFixed(3),'рад/шаг; выше — круглее почерк')+
+   cell('Индекс тремора',M.tremor.toFixed(2),'смен направления на 100 px; >6 — дрожание/копирование')+
+   cell('Сложность',M.complexity.toFixed(2),'длина линии / диагональ')+
+   cell('Равномерность тона',(100-clamp(M.lumStd/1.3,0,100)).toFixed(0)+'%','ниже — заметнее нажим/нехватка чернил');
 }
-
-function calcSymmetry(binary, w, h, bbox) {
-  const bw = bbox.maxX - bbox.minX + 1;
-  const bh = bbox.maxY - bbox.minY + 1;
-  let match = 0, total = 0;
-  
-  for (let y = 0; y < bh; y++) {
-    for (let x = 0; x < Math.floor(bw / 2); x++) {
-      const left = binary[((bbox.minY + y) * w + bbox.minX + x) * 4] < 128;
-      const right = binary[((bbox.minY + y) * w + bbox.minX + bw - 1 - x) * 4] < 128;
-      total++;
-      if (left === right) match++;
-    }
-  }
-  
-  return total > 0 ? Math.round((match / total) * 100) : 0;
+function renderReport(){
+  const M=S.an.M,L=[];
+  L.push('КАК АЛГОРИТМ «ЧИТАЕТ» ЭТУ ПОДПИСЬ\n');
+  L.push('1) Сегментация. Яркость выровнена по локальному фону (убраны тени и желтизна бумаги), порог подобран методом Otsu'+
+         ', цветные пиксели (синяя паста) усилены по насыщенности. Из '+(M.w*M.h).toLocaleString('ru')+' пикселей чернилами признано '+
+         M.ink.toLocaleString('ru')+' ('+(M.density*100).toFixed(1)+'%).');
+  L.push('\n2) Структура. Подпись состоит из '+M.strokes+' несвязных элемент(а/ов) — столько раз перо отрывалось от бумаги'+
+         (M.strokes===1?'. Единый росчерк без отрывов — признак беглого, автоматизированного письма.':
+          M.strokes>6?'. Много фрагментов: либо дробное письмо, либо разрывы из-за качества скана.':'.')+
+         ' Найдено '+M.ends+' концевых точек, '+M.nodes+' самопересечений и '+M.loops+' замкнутых петель.');
+  const sl=M.slant;
+  L.push('\n3) Наклон и строка. Общий наклон '+(sl>=0?'+':'')+sl.toFixed(1)+'° — '+
+    (sl>12?'выраженный правый (быстрое, экспансивное письмо)':sl<-12?'левый (нетипичный, часто у левшей или при замедлении)':'почти вертикальный (сдержанная моторика)')+
+    '. Базовая линия идёт '+(M.base>2?'вверх':M.base<-2?'вниз':'ровно')+' ('+M.base.toFixed(1)+'°).');
+  L.push('\n4) Нажим и динамика. Средняя толщина следа '+M.swMean.toFixed(1)+' px при разбросе '+(M.swVar*100).toFixed(0)+'% — '+
+    (M.swVar>0.45?'сильная модуляция нажима: перо явно ускорялось и замедлялось, характерно для естественного письма':
+     M.swVar<0.2?'почти постоянная толщина: гелевая ручка, векторизация или медленное обведение':'умеренная модуляция'
+    )+'. Индекс тремора '+M.tremor.toFixed(2)+' — '+
+    (M.tremor>6?'много мелких смен направления: дрожание линии. Для верификатора это красный флаг — так выглядит МЕДЛЕННОЕ СРИСОВЫВАНИЕ чужой подписи, а не беглый росчерк':
+     M.tremor<2.5?'линия гладкая и уверенная — признак высокой скорости письма':'в пределах нормы')+'.');
+  L.push('\n5) Что попадает в вектор признаков. Модель-верификатор не хранит картинку: она сводит подпись к набору чисел — '+
+    'пропорции, плотность, наклон, кривизна, число петель и пересечений, фрактальная размерность ('+M.fd.toFixed(2)+'), профиль нажима. '+
+    'Именно эти '+'16 чисел вы видите на диаграмме слева; сравнение двух подписей — это расстояние между такими векторами.');
+  L.push('\n6) Ограничения. Со статичного снимка НЕ восстанавливаются подлинные динамические признаки — реальный порядок, скорость и сила нажима. '+
+    'Порядок штрихов в анимации — лишь гипотеза по топологии скелета. Поэтому экспертиза подлинности по фото считается предварительной.');
+  $('#report').textContent=L.join('\n');
 }
-
-function countIntersections(binary, w, h, bbox) {
-  let crossings = 0;
-  for (let y = bbox.minY + 1; y < bbox.maxY; y++) {
-    for (let x = bbox.minX + 1; x < bbox.maxX; x++) {
-      const idx = (y * w + x) * 4;
-      if (binary[idx] < 128) {
-        const n = binary[((y-1) * w + x) * 4] < 128;
-        const s = binary[((y+1) * w + x) * 4] < 128;
-        const e = binary[(y * w + x + 1) * 4] < 128;
-        const w2 = binary[(y * w + x - 1) * 4] < 128;
-        if (n && s && e && w2) crossings++;
-      }
-    }
-  }
-  return crossings;
-}
-
-function countLoops(components) {
-  let loops = 0;
-  for (const comp of components) {
-    // Estimate loops based on component complexity
-    const area = comp.size;
-    const perimeter = 2 * (comp.width + comp.height);
-    const compactness = area / (perimeter * perimeter + 1);
-    if (compactness > 0.01 && comp.width > 10 && comp.height > 10) loops++;
-  }
-  return loops;
-}
-
-function calcComplexity(bbox, components, intersections, loops, curvature) {
-  const area = bbox.width * bbox.height;
-  const density = components.length * 5 + intersections * 2 + loops * 10 + curvature * 0.3 + area * 0.01;
-  return Math.min(100, Math.max(5, Math.round(density)));
-}
-
-function analyzeStrokes(gray, binary, w, h, bbox) {
-  const directions = [];
-  const widths = [];
-  
-  for (let y = bbox.minY + 1; y < bbox.maxY; y++) {
-    for (let x = bbox.minX + 1; x < bbox.maxX; x++) {
-      const idx = (y * w + x) * 4;
-      if (binary[idx] < 128) {
-        // Sobel gradient
-        const gx = -gray[((y-1)*w + x-1)*4] - 2*gray[(y*w + x-1)*4] - gray[((y+1)*w + x-1)*4]
-                  + gray[((y-1)*w + x+1)*4] + 2*gray[(y*w + x+1)*4] + gray[((y+1)*w + x+1)*4];
-        const gy = -gray[((y-1)*w + x-1)*4] - 2*gray[((y-1)*w + x)*4] - gray[((y-1)*w + x+1)*4]
-                  + gray[((y+1)*w + x-1)*4] + 2*gray[((y+1)*w + x)*4] + gray[((y+1)*w + x+1)*4];
-        const angle = Math.atan2(gy, gx);
-        directions.push({ x, y, angle, gx, gy });
-      }
-    }
-  }
-  
-  return { directions, count: directions.length };
-}
-
-function sobelEdges(gray, w, h) {
-  const edges = new Uint8ClampedArray(gray.length);
-  for (let y = 1; y < h - 1; y++) {
-    for (let x = 1; x < w - 1; x++) {
-      const gx = -gray[((y-1)*w + x-1)*4] - 2*gray[(y*w + x-1)*4] - gray[((y+1)*w + x-1)*4]
-                + gray[((y-1)*w + x+1)*4] + 2*gray[(y*w + x+1)*4] + gray[((y+1)*w + x+1)*4];
-      const gy = -gray[((y-1)*w + x-1)*4] - 2*gray[((y-1)*w + x)*4] - gray[((y-1)*w + x+1)*4]
-                + gray[((y+1)*w + x-1)*4] + 2*gray[((y+1)*w + x)*4] + gray[((y+1)*w + x+1)*4];
-      const mag = Math.min(255, Math.sqrt(gx*gx + gy*gy));
-      const idx = (y * w + x) * 4;
-      edges[idx] = edges[idx+1] = edges[idx+2] = 255 - mag;
-      edges[idx+3] = 255;
-    }
-  }
-  return edges;
-}
-
-function generateHeatmap(binary, w, h) {
-  const heat = new Uint8ClampedArray(binary.length);
-  const blockSize = 15;
-  
-  for (let by = 0; by < h; by += blockSize) {
-    for (let bx = 0; bx < w; bx += blockSize) {
-      let darkCount = 0, blockTotal = 0;
-      for (let y = by; y < Math.min(by + blockSize, h); y++) {
-        for (let x = bx; x < Math.min(bx + blockSize, w); x++) {
-          blockTotal++;
-          if (binary[(y * w + x) * 4] < 128) darkCount++;
-        }
-      }
-      const density = blockTotal > 0 ? darkCount / blockTotal : 0;
-      
-      // Color mapping: blue -> green -> yellow -> red
-      let r, g, b;
-      if (density < 0.25) {
-        r = 0; g = Math.round(density * 4 * 128); b = Math.round(255 - density * 4 * 128);
-      } else if (density < 0.5) {
-        r = Math.round((density - 0.25) * 4 * 128); g = 128 + Math.round((density - 0.25) * 4 * 127); b = 0;
-      } else if (density < 0.75) {
-        r = 128 + Math.round((density - 0.5) * 4 * 127); g = 255 - Math.round((density - 0.5) * 4 * 128); b = 0;
-      } else {
-        r = 255; g = Math.round((1 - density) * 4 * 128); b = 0;
-      }
-      
-      for (let y = by; y < Math.min(by + blockSize, h); y++) {
-        for (let x = bx; x < Math.min(bx + blockSize, w); x++) {
-          const idx = (y * w + x) * 4;
-          heat[idx] = r; heat[idx+1] = g; heat[idx+2] = b; heat[idx+3] = 255;
-        }
-      }
-    }
-  }
-  return heat;
-}
-
-// ==================== RENDERING ====================
-function renderBinary(binary, w, h) {
-  const canvas = document.getElementById('binaryCanvas');
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext('2d');
-  ctx.putImageData(new ImageData(binary, w, h), 0, 0);
-}
-
-function renderHeatmap(heatmap, w, h) {
-  const canvas = document.getElementById('heatmapCanvas');
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext('2d');
-  ctx.putImageData(new ImageData(heatmap, w, h), 0, 0);
-}
-
-function renderStrokeDirections(strokeData, w, h, bbox) {
-  const canvas = document.getElementById('strokeCanvas');
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext('2d');
-  
-  // White background
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(0, 0, w, h);
-  
-  // Draw direction arrows
-  const step = Math.max(1, Math.floor(strokeData.count / 3000));
-  for (let i = 0; i < strokeData.directions.length; i += step) {
-    const d = strokeData.directions[i];
-    const x = d.x, y = d.y;
-    const len = 12;
-    const ex = x + Math.cos(d.angle) * len;
-    const ey = y + Math.sin(d.angle) * len;
-    
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(ex, ey);
-    
-    const hue = ((d.angle + Math.PI) / (2 * Math.PI)) * 360;
-    ctx.strokeStyle = `hsla(${hue}, 80%, 50%, 0.8)`;
-    ctx.lineWidth = 2;
-    ctx.stroke();
-  }
-}
-
-function renderEdges(edges, w, h) {
-  const canvas = document.getElementById('edgeCanvas');
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext('2d');
-  ctx.putImageData(new ImageData(edges, w, h), 0, 0);
-}
-
-function renderMetrics() {
-  const r = analysisResults;
-  if (!r) return;
-  
-  // Update metric values with animation
-  animateValue('mInkDensity', r.inkDensity, '%');
-  animateValue('mPressure', r.pressure, '%');
-  animateValue('mSlant', r.slant, '°');
-  animateValue('mCurvature', r.curvature, '%');
-  animateValue('mSymmetry', r.symmetry, '%');
-  animateValue('mIntersections', r.intersections, '');
-  animateValue('mLoops', r.loops, '');
-  
-  const speed = Math.min(100, Math.round(r.curvature * 0.5 + r.inkDensity * 0.3 + r.pressure * 0.2));
-  animateValue('mSpeed', speed, '%');
-  
-  // Progress bars
-  document.getElementById('pInkDensity').style.width = r.inkDensity + '%';
-  document.getElementById('pPressure').style.width = r.pressure + '%';
-  document.getElementById('pSlant').style.width = Math.min(100, Math.abs(r.slant) * 3) + '%';
-  document.getElementById('pCurvature').style.width = r.curvature + '%';
-  document.getElementById('pSymmetry').style.width = r.symmetry + '%';
-}
-
-function animateValue(id, value, suffix) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.textContent = '0' + suffix;
-  let current = 0;
-  const step = Math.ceil(value / 20);
-  const interval = setInterval(() => {
-    current += step;
-    if (current >= value) {
-      current = value;
-      clearInterval(interval);
-    }
-    el.textContent = current + suffix;
-  }, 30);
-}
-
-function renderStyle() {
-  const r = analysisResults;
-  const container = document.getElementById('styleTags');
-  if (!r || !container) return;
-  
-  const tags = [];
-  
-  // Style classification
-  if (r.curvature > 40) tags.push({ text: 'Курсивный стиль', cls: 'purple' });
-  else if (r.curvature > 20) tags.push({ text: 'Смешанный стиль', cls: 'purple' });
-  else tags.push({ text: 'Печатный стиль', cls: 'purple' });
-  
-  // Slant
-  if (r.slant > 5) tags.push({ text: `Наклон вправо (${r.slant}°)`, cls: 'teal' });
-  else if (r.slant < -5) tags.push({ text: `Наклон влево (${Math.abs(r.slant)}°)`, cls: 'teal' });
-  else tags.push({ text: 'Прямой наклон', cls: 'teal' });
-  
-  // Pressure
-  if (r.pressure > 60) tags.push({ text: 'Сильное давление', cls: 'red' });
-  else if (r.pressure > 30) tags.push({ text: 'Среднее давление', cls: 'red' });
-  else tags.push({ text: 'Лёгкое давление', cls: 'red' });
-  
-  // Complexity
-  if (r.complexity > 60) tags.push({ text: 'Высокая сложность', cls: 'yellow' });
-  else if (r.complexity > 30) tags.push({ text: 'Средняя сложность', cls: 'yellow' });
-  else tags.push({ text: 'Простая подпись', cls: 'yellow' });
-  
-  // Loops
-  if (r.loops > 3) tags.push({ text: 'Много петель', cls: 'purple' });
-  if (r.intersections > 5) tags.push({ text: 'Пересекающиеся штрихи', cls: 'teal' });
-  if (r.symmetry > 50) tags.push({ text: 'Симметричная', cls: 'yellow' });
-  
-  container.innerHTML = tags.map(t => `<span class="style-tag ${t.cls}">${t.text}</span>`).join('');
-  
-  const confidence = Math.min(95, 50 + r.complexity * 0.3 + r.curvature * 0.15);
-  document.getElementById('confidenceVal').textContent = confidence + '%';
-  document.getElementById('confidenceBar').style.width = confidence + '%';
-}
-
-// ==================== EXTRACTION ====================
-function extractSignature() {
-  if (!analysisResults || !originalImageData) return;
-  
-  const r = analysisResults;
-  const srcCanvas = document.createElement('canvas');
-  srcCanvas.width = r.w;
-  srcCanvas.height = r.h;
-  const srcCtx = srcCanvas.getContext('2d');
-  srcCtx.putImageData(originalImageData, 0, 0);
-  
-  const bw = r.bbox.maxX - r.bbox.minX + 1;
-  const bh = r.bbox.maxY - r.bbox.minY + 1;
-  
-  const extractCanvas = document.getElementById('extractCanvas');
-  extractCanvas.width = bw;
-  extractCanvas.height = bh;
-  const ctx = extractCanvas.getContext('2d');
-  
-  // Draw cropped region
-  ctx.drawImage(srcCanvas, r.bbox.minX, r.bbox.minY, bw, bh, 0, 0, bw, bh);
-  
-  // Make background transparent
-  const imageData = ctx.getImageData(0, 0, bw, bh);
-  applyExtractionThreshold(imageData, 200);
-  ctx.putImageData(imageData, 0, 0);
-  
-  extractedImageData = ctx.getImageData(0, 0, bw, bh);
-}
-
-function applyExtractionThreshold(imageData, threshold) {
-  const d = imageData.data;
-  for (let i = 0; i < d.length; i += 4) {
-    const brightness = (d[i] + d[i+1] + d[i+2]) / 3;
-    if (brightness > threshold) {
-      d[i+3] = 0; // transparent
-    } else {
-      const alpha = Math.round(255 * (1 - brightness / threshold));
-      d[i+3] = Math.max(50, alpha);
-    }
-  }
-}
-
-function updateThreshold(val) {
-  document.getElementById('thresholdVal').textContent = val;
-  if (analysisResults && originalImageData) {
-    const r = analysisResults;
-    const srcCanvas = document.createElement('canvas');
-    srcCanvas.width = r.w;
-    srcCanvas.height = r.h;
-    srcCanvas.getContext('2d').putImageData(originalImageData, 0, 0);
-    
-    const bw = r.bbox.maxX - r.bbox.minX + 1;
-    const bh = r.bbox.maxY - r.bbox.minY + 1;
-    
-    const extractCanvas = document.getElementById('extractCanvas');
-    extractCanvas.width = bw;
-    extractCanvas.height = bh;
-    const ctx = extractCanvas.getContext('2d');
-    ctx.drawImage(srcCanvas, r.bbox.minX, r.bbox.minY, bw, bh, 0, 0, bw, bh);
-    
-    const imageData = ctx.getImageData(0, 0, bw, bh);
-    applyExtractionThreshold(imageData, parseInt(val));
-    ctx.putImageData(imageData, 0, 0);
-  }
-}
-
-function updateBlur(val) {
-  document.getElementById('blurVal').textContent = val;
-}
-
-function updateContrast(val) {
-  document.getElementById('contrastVal').textContent = val;
-}
-
-function updateSharpen(val) {
-  document.getElementById('sharpenVal').textContent = val;
-}
-
-function updateInkColor(val) {
-  // Placeholder for ink color replacement
-}
-
-function resetExtraction() {
-  extractSignature();
-  document.getElementById('thresholdSlider').value = 200;
-  document.getElementById('thresholdVal').textContent = '200';
-}
-
-function applyExtraction() {
-  extractSignature();
-  switchTab('document');
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.tab')[3].classList.add('active');
-}
-
-function downloadSignature() {
-  const canvas = document.getElementById('extractCanvas');
-  const link = document.createElement('a');
-  link.download = 'signature.png';
-  link.href = canvas.toDataURL('image/png');
-  link.click();
-}
-
-function copySignature() {
-  const canvas = document.getElementById('extractCanvas');
-  canvas.toBlob(blob => {
-    navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).catch(() => {
-      alert('Копирование не поддерживается в вашем браузере');
-    });
-  });
-}
-
-// ==================== DOCUMENT EDITOR ====================
-function insertSignature() {
-  const extractCanvas = document.getElementById('extractCanvas');
-  const sigArea = document.getElementById('sigArea');
-  
-  if (!extractCanvas.width) {
-    alert('Сначала загрузите и проанализируйте подпись');
-    return;
-  }
-  
-  const sigImg = document.createElement('img');
-  sigImg.src = extractCanvas.toDataURL('image/png');
-  sigImg.className = 'placed-sig';
-  sigImg.draggable = true;
-  sigImg.style.width = '200px';
-  sigImg.style.position = 'absolute';
-  sigImg.style.left = '10px';
-  sigImg.style.top = '10px';
-  
-  // Make draggable within signature area
-  let isDragging = false, startX, startY, startLeft, startTop;
-  
-  sigImg.addEventListener('mousedown', (e) => {
-    isDragging = true;
-    sigImg.classList.add('dragging');
-    startX = e.clientX;
-    startY = e.clientY;
-    startLeft = parseInt(sigImg.style.left) || 0;
-    startTop = parseInt(sigImg.style.top) || 0;
-    e.preventDefault();
-  });
-  
-  document.addEventListener('mousemove', (e) => {
-    if (!isDragging) return;
-    sigImg.style.left = (startLeft + e.clientX - startX) + 'px';
-    sigImg.style.top = (startTop + e.clientY - startY) + 'px';
-  });
-  
-  document.addEventListener('mouseup', () => {
-    isDragging = false;
-    sigImg.classList.remove('dragging');
-  });
-  
-  sigArea.appendChild(sigImg);
-  sigElements.push(sigImg);
-}
-
-function clearSignatures() {
-  sigElements.forEach(el => el.remove());
-  sigElements = [];
-}
-
-function exportDocument() {
-  const docPage = document.getElementById('docPage');
-  // Use canvas to export document
-  const canvas = document.createElement('canvas');
-  const rect = docPage.getBoundingClientRect();
-  canvas.width = rect.width * 2;
-  canvas.height = rect.height * 2;
-  const ctx = canvas.getContext('2d');
-  ctx.scale(2, 2);
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(0, 0, rect.width, rect.height);
-  ctx.fillStyle = '#222';
-  ctx.font = '16px sans-serif';
-  ctx.fillText('Document Export', 20, 30);
-  
-  const link = document.createElement('a');
-  link.download = 'document.png';
-  link.href = canvas.toDataURL('image/png');
-  link.click();
-  
-  // Alternative: print
-  alert('Используйте кнопку "Печать" для экспорта в PDF');
-}
-
-function printDocument() {
-  const docPage = document.getElementById('docPage');
-  const win = window.open('', '', 'width=800,height=1000');
-  win.document.write(`
-    <html>
-    <head>
-      <title>Document</title>
-      <style>
-        body { margin: 40px; font-family: sans-serif; color: #222; }
-        .doc-page { max-width: 700px; }
-        .placed-sig { max-width: 200px; }
-      </style>
-    </head>
-    <body>${docPage.outerHTML}</body>
-    </html>
-  `);
-  win.document.close();
-  win.print();
-}
-
-// ==================== AI REPORT ====================
-function generateReport() {
-  const r = analysisResults;
-  if (!r) return;
-  
-  const reportContainer = document.getElementById('aiReport');
-  const speed = Math.min(100, Math.round(r.curvature * 0.5 + r.inkDensity * 0.3 + r.pressure * 0.2));
-  
-  const lines = [
-    {
-      icon: '🔬',
-      text: `<strong>Общие характеристики:</strong> Подпись занимает область <strong>${r.bbox.width}×${r.bbox.height} px</strong>. Обнаружено <strong>${r.components.length} компонент(ов) связности</strong>, что указывает на ${r.components.length > 5 ? 'раздельное написание элементов' : 'непрерывное написание'}.`
-    },
-    {
-      icon: '✏️',
-      text: `<strong>Плотность чернил:</strong> ${r.inkDensity}% — это ${r.inkDensity > 20 ? 'высокая' : r.inkDensity > 10 ? 'средняя' : 'низкая'} плотность нанесения. ${r.inkDensity > 20 ? 'Возможно, подпись выполнена жирным пером или сильно нажимая.' : 'Подпись может быть выполнена тонким пером.'}`
-    },
-    {
-      icon: '📐',
-      text: `<strong>Наклон:</strong> ${r.slant}° — ${r.slant > 5 ? 'подпись имеет выраженный наклон вправо, характерный для правшей' : r.slant < -5 ? 'подпись имеет наклон влево, что может указывать на левшу' : 'подпись написана практически вертикально'}.`
-    },
-    {
-      icon: '⚖️',
-      text: `<strong>Давление:</strong> ${r.pressure}% — ${r.pressure > 60 ? 'сильное давление, штрихи толстые и уверенные' : r.pressure > 30 ? 'среднее давление, штрихи имеют переменную толщину' : 'лёгкое давление, штрихи тонкие'}. Это может отражать характер автора: ${r.pressure > 60 ? 'уверенный и решительный' : r.pressure > 30 ? 'спокойный и сбалансированный' : 'аккуратный и деликатный'}.`
-    },
-    {
-      icon: '🌀',
-      text: `<strong>Кривизна:</strong> ${r.curvature}% — ${r.curvature > 40 ? 'подпись содержит много изогнутых элементов, характерных для курсивного стиля' : r.curvature > 20 ? 'смешение прямых и кривых элементов' : 'преимущественно прямые линии, похоже на печатный стиль'}.`
-    },
-    {
-      icon: '📊',
-      text: `<strong>Симметрия:</strong> ${r.symmetry}% — ${r.symmetry > 50 ? 'подпись имеет элементы симметрии, что придаёт ей формальный вид' : 'подпись асимметрична, что характерно для индивидуальных стилей'}.`
-    },
-    {
-      icon: '🔀',
-      text: `<strong>Пересечения штрихов:</strong> ${r.intersections} — ${r.intersections > 5 ? 'много пересечений указывает на сложную структуру и хорошую защиту от подделки' : r.intersections > 2 ? 'умеренное количество пересечений' : 'минимальные пересечения'}.`
-    },
-    {
-      icon: '🔄',
-      text: `<strong>Петли и округлые элементы:</strong> ${r.loops} — ${r.loops > 3 ? 'подпись содержит множество петель, что делает её более индивидуальной' : 'подпись содержит минимальное количество петель'}.`
-    },
-    {
-      icon: '⚡',
-      text: `<strong>Оценка скорости написания:</strong> ${speed}% — ${speed > 60 ? 'быстрая, уверенная подпись (молодой или энергичный автор)' : speed > 30 ? 'средняя скорость написания' : 'медленная, аккуратная подпись'}.`
-    },
-    {
-      icon: '💎',
-      text: `<strong>Общая сложность:</strong> ${r.complexity}/100 — ${r.complexity > 60 ? 'высокая сложность. Подпись трудно подделать, содержит множество уникальных элементов.' : r.complexity > 30 ? 'средняя сложность. Подпись достаточно уникальна для идентификации.' : 'простая подпись. Может быть легче воспроизведена посторонними.'}`
-    },
-    {
-      icon: '🔍',
-      text: `<strong>Классификация:</strong> ${r.curvature > 40 ? 'Курсивный стиль' : r.curvature > 20 ? 'Смешанный стиль' : 'Печатный стиль'} • ${r.slant > 5 ? 'Правый наклон' : r.slant < -5 ? 'Левый наклон' : 'Прямой'} • ${r.pressure > 60 ? 'Высокое давление' : r.pressure > 30 ? 'Среднее давление' : 'Низкое давление'}`
-    },
-    {
-      icon: '🧠',
-      text: `<strong>Вывод ИИ:</strong> Подпись демонстрирует ${r.complexity > 50 ? 'высокий уровень индивидуальности и хорошую защиту от подделки' : 'средний уровень сложности'}. ${r.curvature > 30 ? 'Курсивные элементы и изогнутые формы характерны для уверенных людей.' : 'Прямые линии указывают на практичный характер.'} ${r.intersections > 3 ? 'Пересечения штрихов добавляют дополнительный уровень защиты.' : ''} Рекомендуется использовать извлечённую подпись в формате PNG с прозрачным фоном для вставки в документы.`
-    }
+function featureVector(M){
+  return [
+    clamp(Math.log(M.aspect)/2,-1,1), clamp(M.density*6,0,1), clamp(M.swMean/M.h*10,0,1),
+    clamp(M.swVar,0,1), clamp(M.slant/45,-1,1), clamp(M.base/20,-1,1),
+    clamp(Math.log(1+M.strokes)/3,0,1), clamp(M.ends/Math.max(1,M.skLen)*120,0,1),
+    clamp(M.nodes/Math.max(1,M.skLen)*160,0,1), clamp(M.loops/8,0,1),
+    clamp((M.fd-0.9)/0.8,0,1), clamp(M.curvMean*3,0,1), clamp(M.tremor/12,0,1),
+    clamp(M.complexity/14,0,1), clamp(M.cmx,0,1), clamp(M.cmy,0,1)
   ];
-  
-  reportContainer.innerHTML = lines.map((line, i) => `
-    <div class="report-line" style="animation-delay:${i * 0.15}s">
-      <div class="r-icon">${line.icon}</div>
-      <div class="r-text">${line.text}</div>
-    </div>
-  `).join('');
 }
-
-function downloadReport() {
-  const text = document.getElementById('aiReport').innerText;
-  const blob = new Blob([text], { type: 'text/plain' });
-  const link = document.createElement('a');
-  link.download = 'signature_analysis_report.txt';
-  link.href = URL.createObjectURL(blob);
-  link.click();
-}
-
-function copyReport() {
-  const text = document.getElementById('aiReport').innerText;
-  navigator.clipboard.writeText(text).then(() => {
-    alert('Отчёт скопирован в буфер обмена');
+const FVN=['пропорция','плотность','толщина','нажим','наклон','строка','отрывы','концы','узлы','петли','фрактал','кривизна','тремор','сложность','центр X','центр Y'];
+function renderFV(){
+  const v=featureVector(S.an.M),c=$('#fvC'),x=c.getContext('2d');
+  x.clearRect(0,0,c.width,c.height);
+  const bw=c.width/v.length;
+  v.forEach((val,i)=>{
+    const hgt=clamp(Math.abs(val),0,1)*(c.height-28);
+    x.fillStyle=val<0?'#ff6b6b':'#5aa9ff';
+    x.fillRect(i*bw+1.5,c.height-16-hgt,bw-3,hgt);
   });
+  x.fillStyle='#8c94a6';x.font='9px sans-serif';
+  v.forEach((val,i)=>{x.save();x.translate(i*bw+bw/2,c.height-3);x.fillText(FVN[i].slice(0,6),-14,0);x.restore();});
+  S.an.fv=v;
 }
 
-// ==================== LOADING ====================
-function showLoading(text, sub) {
-  document.getElementById('loadingText').textContent = text;
-  document.getElementById('loadingSub').textContent = sub;
-  document.getElementById('loadingOverlay').classList.add('show');
-}
-
-function setLoadingSub(text) {
-  document.getElementById('loadingSub').textContent = text;
-}
-
-function hideLoading() {
-  document.getElementById('loadingOverlay').classList.remove('show');
-}
-
-// ==================== INIT ====================
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('🧠 Signature AI Analyzer initialized');
+/* анимация порядка письма */
+$('#replay').addEventListener('click',()=>{
+  if(!S.an)return;cancelAnimationFrame(S.anim);
+  const {w,h,M}=S.an,sc=anC.width/w,c=anC.getContext('2d');
+  const strokes=S.an.traces.map(t=>resample(t,2));
+  let si=0,pi=0;
+  c.clearRect(0,0,anC.width,anC.height);
+  c.lineCap='round';c.lineJoin='round';
+  const step=()=>{
+    for(let k=0;k<Math.max(2,Math.round(M.skLen/260));k++){
+      if(si>=strokes.length){setStatus('воспроизведение завершено');return;}
+      const s=strokes[si];
+      if(pi===0){c.strokeStyle='#39d98a';c.lineWidth=Math.max(1.6,M.swMean*sc*0.9);
+        c.beginPath();c.arc(s[0][0]*sc,s[0][1]*sc,3,0,7);c.fillStyle='#ffb648';c.fill();}
+      if(pi<s.length-1){
+        c.strokeStyle='rgba(230,236,245,.95)';
+        c.beginPath();c.moveTo(s[pi][0]*sc,s[pi][1]*sc);c.lineTo(s[pi+1][0]*sc,s[pi+1][1]*sc);c.stroke();
+        pi++;
+      } else {si++;pi=0;}
+    }
+    S.anim=requestAnimationFrame(step);
+  };
+  setStatus('проигрываю гипотетический порядок штрихов…');step();
 });
 
-// Keyboard shortcut: 1-5 to switch tabs
-document.addEventListener('keydown', (e) => {
-  const tabMap = { '1': 0, '2': 1, '3': 2, '4': 3, '5': 4 };
-  if (tabMap[e.key] !== undefined) {
-    const tabs = document.querySelectorAll('.tab');
-    if (tabs[tabMap[e.key]]) tabs[tabMap[e.key]].click();
+/* ===================== 3. СРАВНЕНИЕ ===================== */
+$('#saveRef').addEventListener('click',()=>{
+  if(!S.an)return;
+  S.ref={fv:S.an.fv.slice(),M:JSON.parse(JSON.stringify(S.an.M)),img:S.out.toDataURL()};
+  loadImage(S.ref.img).then(i=>{const c=$('#refC');c.width=260;c.height=Math.round(260*i.height/i.width);
+    c.getContext('2d').drawImage(i,0,0,c.width,c.height);});
+  setStatus('эталон сохранён');compare();
+});
+function compare(){
+  if(!S.ref||!S.an){return;}
+  const a=S.ref.fv,b=S.an.fv;
+  let dot=0,na=0,nb=0,l2=0;
+  for(let i=0;i<a.length;i++){dot+=a[i]*b[i];na+=a[i]*a[i];nb+=b[i]*b[i];l2+=(a[i]-b[i])**2;}
+  const cos=dot/Math.max(1e-6,Math.sqrt(na)*Math.sqrt(nb));
+  const dist=Math.sqrt(l2);
+  const score=clamp(100*(1-dist/1.6),0,100);
+  const verdict=score>82?['ВЫСОКОЕ сходство','ok']:score>62?['СРЕДНЕЕ сходство','']:['НИЗКОЕ сходство','no'];
+  $('#cmpMet').innerHTML=
+    cell('Косинусная близость',cos.toFixed(3),'1.000 — векторы совпали')+
+    cell('Евклидово расстояние',dist.toFixed(3),'0 — идентичны')+
+    cell('Оценка сходства',score.toFixed(0)+'%','условная, по 16 признакам')+
+    cell('Вердикт','<span class="tag '+verdict[1]+'">'+verdict[0]+'</span>','порог настраивается под задачу');
+  const diffs=a.map((v,i)=>({n:FVN[i],d:Math.abs(v-b[i])})).sort((x,y)=>y.d-x.d).slice(0,4);
+  $('#cmpRep').textContent=
+    'Наибольшие расхождения по признакам: '+diffs.map(d=>d.n+' ('+d.d.toFixed(2)+')').join(', ')+'.\n\n'+
+    'Так работает реальная система: она сравнивает не пиксели, а признаки. Поэтому одну и ту же подпись, '+
+    'снятую на другом фоне и под другим углом, она узнаёт, а аккуратную КОПИЮ — часто отвергает: '+
+    'у копии совпадает форма, но не совпадают динамика (тремор, нажим, скорость) и микропропорции.';
+}
+
+/* ===================== ЭКСПОРТ ===================== */
+$('#dlPng').addEventListener('click',()=>{if(S.out)download(S.out.toDataURL('image/png'),'signature.png');});
+$('#cpPng').addEventListener('click',async()=>{
+  if(!S.out)return;
+  try{S.out.toBlob(async b=>{await navigator.clipboard.write([new ClipboardItem({'image/png':b})]);setStatus('PNG скопирован в буфер');});}
+  catch(e){alert('Буфер недоступен: '+e.message);}
+});
+$('#dlSvg').addEventListener('click',()=>{
+  if(!S.an)return alert('Сначала выполните анализ');
+  const {w,h,M,traces}=S.an;
+  const sc=S.out.width/w;
+  let p='';
+  for(const t of traces){
+    p+='<path d="M '+t.map(q=>(q[0]*sc).toFixed(1)+' '+(q[1]*sc).toFixed(1)).join(' L ')+'"/>\n';
   }
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${S.out.width}" height="${S.out.height}" viewBox="0 0 ${S.out.width} ${S.out.height}">
+<g fill="none" stroke="#111" stroke-width="${(M.swMean*sc).toFixed(2)}" stroke-linecap="round" stroke-linejoin="round">
+${p}</g></svg>`;
+  download(URL.createObjectURL(new Blob([svg],{type:'image/svg+xml'})),'signature.svg');
 });
+
+/* ===================== 4. ВСТАВКА ===================== */
+const docC=$('#docC');
+async function loadDoc(f){
+  const img=await fileToImage(f);
+  S.doc=imgToCanvas(img,2000);
+  S.place={x:S.doc.width*0.6,y:S.doc.height*0.8,scale:1,rot:0};
+  $('#sSc').value=100;drawDoc();
+}
+['sSc','sRo','sOp'].forEach(id=>$('#'+id).addEventListener('input',()=>{
+  $('#vSc').textContent=$('#sSc').value+'%';$('#vRo').textContent=(+$('#sRo').value).toFixed(1)+'°';
+  $('#vOp').textContent=$('#sOp').value+'%';
+  S.place.scale=+$('#sSc').value/100;S.place.rot=+$('#sRo').value*Math.PI/180;drawDoc();}));
+['cMul','cMark'].forEach(id=>$('#'+id).addEventListener('change',drawDoc));
+function drawDoc(){
+  if(!S.doc){return;}
+  docC.width=S.doc.width;docC.height=S.doc.height;
+  const c=docC.getContext('2d');c.drawImage(S.doc,0,0);
+  if(S.out){
+    c.save();
+    c.globalAlpha=+$('#sOp').value/100;
+    if($('#cMul').checked)c.globalCompositeOperation='multiply';
+    c.translate(S.place.x,S.place.y);c.rotate(S.place.rot);
+    const s=S.place.scale*(S.doc.width/1400);
+    c.drawImage(S.out,-S.out.width*s/2,-S.out.height*s/2,S.out.width*s,S.out.height*s);
+    c.restore();
+  }
+  if($('#cMark').checked){
+    c.save();c.globalAlpha=.3;c.fillStyle='#ff3b3b';
+    c.font='bold '+Math.round(docC.width/11)+'px sans-serif';
+    c.translate(docC.width/2,docC.height/2);c.rotate(-Math.PI/9);c.textAlign='center';
+    c.fillText('ОБРАЗЕЦ / DEMO',0,0);c.restore();
+  }
+}
+let dragD=false;
+docC.addEventListener('pointerdown',e=>{if(!S.doc)return;dragD=true;docC.setPointerCapture(e.pointerId);
+  const p=cpos(e,docC);S.place.x=p.x;S.place.y=p.y;drawDoc();});
+docC.addEventListener('pointermove',e=>{if(!dragD)return;const p=cpos(e,docC);S.place.x=p.x;S.place.y=p.y;drawDoc();});
+docC.addEventListener('pointerup',()=>dragD=false);
+docC.addEventListener('wheel',e=>{if(!S.doc)return;e.preventDefault();
+  const v=clamp(+$('#sSc').value*(e.deltaY<0?1.07:0.93),5,300);$('#sSc').value=v;
+  $('#sSc').dispatchEvent(new Event('input'));},{passive:false});
+$('#dlComp').addEventListener('click',()=>{if(S.doc)download(docC.toDataURL('image/png'),'document-signed.png');});
+$('#cpComp').addEventListener('click',()=>{if(!S.doc)return;
+  docC.toBlob(async b=>{try{await navigator.clipboard.write([new ClipboardItem({'image/png':b})]);setStatus('документ скопирован');}catch(e){alert(e.message);}});});
+
+/* ===================== 5. LLM ===================== */
+const CFG={mode:'ollama',url:'http://localhost:11434/api/generate',model:'llava:13b',key:'',prompt:$('#aiPrompt').value};
+function loadCfg(){try{const s=JSON.parse(localStorage.getItem('signlab')||'{}');Object.assign(CFG,s);}catch(e){}
+  $('#aiMode').value=CFG.mode;$('#aiUrl').value=CFG.url;$('#aiModel').value=CFG.model;$('#aiKey').value=CFG.key;$('#aiPrompt').value=CFG.prompt;
+  $('#aiState').textContent=CFG.mode==='off'?'модель выключена':CFG.model+' @ '+new URL(CFG.url).host;}
+$('#aiSave').addEventListener('click',()=>{
+  CFG.mode=$('#aiMode').value;CFG.url=$('#aiUrl').value;CFG.model=$('#aiModel').value;CFG.key=$('#aiKey').value;CFG.prompt=$('#aiPrompt').value;
+  localStorage.setItem('signlab',JSON.stringify(CFG));loadCfg();$('#aiLog').textContent='Настройки сохранены.';});
+$('#aiMode').addEventListener('change',()=>{
+  const m=$('#aiMode').value;
+  if(m==='ollama')$('#aiUrl').value='http://localhost:11434/api/generate';
+  if(m==='openai')$('#aiUrl').value='http://localhost:1234/v1/chat/completions';});
+async function callLLM(dataURL,metricsText){
+  const b64=dataURL.split(',')[1];
+  const user=CFG.prompt+'\n\nМЕТРИКИ ЛОКАЛЬНОГО АНАЛИЗАТОРА:\n'+metricsText;
+  if(CFG.mode==='ollama'){
+    const r=await fetch(CFG.url,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:CFG.model,prompt:user,images:[b64],stream:false})});
+    if(!r.ok)throw new Error('HTTP '+r.status+' '+await r.text());
+    return (await r.json()).response;
+  } else {
+    const h={'Content-Type':'application/json'};if(CFG.key)h.Authorization='Bearer '+CFG.key;
+    const r=await fetch(CFG.url,{method:'POST',headers:h,body:JSON.stringify({model:CFG.model,max_tokens:1200,
+      messages:[{role:'user',content:[{type:'text',text:user},{type:'image_url',image_url:{url:dataURL}}]}]})});
+    if(!r.ok)throw new Error('HTTP '+r.status+' '+await r.text());
+    const j=await r.json();return j.choices?.[0]?.message?.content??JSON.stringify(j);
+  }
+}
+$('#aiTest').addEventListener('click',async()=>{
+  $('#aiLog').textContent='Проверяю…';
+  try{
+    const c=newCanvas(64,32),x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,64,32);
+    x.strokeStyle='#000';x.beginPath();x.moveTo(5,25);x.bezierCurveTo(20,0,40,30,58,8);x.stroke();
+    const t=await callLLM(c.toDataURL('image/png'),'тестовый вызов');
+    $('#aiLog').textContent='✔ Соединение работает.\n\n'+t.slice(0,600);
+  }catch(e){$('#aiLog').textContent='✖ Ошибка: '+e.message+
+    '\n\nЧастые причины:\n• Ollama запущена без CORS → перезапустите: OLLAMA_ORIGINS=* ollama serve\n• модель не скачана: ollama pull llava:13b\n• неверный endpoint или модель без поддержки изображений.';}
+});
+$('#askAI').addEventListener('click',async()=>{
+  if(!S.out||!S.an)return alert('Сначала вырежьте подпись');
+  if(CFG.mode==='off')return alert('Модель выключена (вкладка 5)');
+  $('#aiOut').style.display='block';$('#aiOut').textContent='Модель думает…';
+  const M=S.an.M;
+  const mt=Object.entries({
+    'размер_px':S.out.width+'x'+S.out.height,'пропорция':M.aspect.toFixed(2),'плотность_чернил_%':(M.density*100).toFixed(1),
+    'отрывов_пера':M.strokes,'длина_линии_px':Math.round(M.skLen),'толщина_штриха_px':M.swMean.toFixed(1),
+    'вариация_нажима_%':(M.swVar*100).toFixed(0),'наклон_град':M.slant.toFixed(1),'базовая_линия_град':M.base.toFixed(1),
+    'концевых_точек':M.ends,'самопересечений':M.nodes,'петель':M.loops,'фрактальная_размерность':M.fd.toFixed(2),
+    'средняя_кривизна':M.curvMean.toFixed(3),'индекс_тремора':M.tremor.toFixed(2)
+  }).map(([k,v])=>k+': '+v).join('\n');
+  try{ $('#aiOut').textContent=await callLLM(S.out.toDataURL('image/png'),mt); }
+  catch(e){ $('#aiOut').textContent='Ошибка модели: '+e.message+'\nЛокальный анализ выше остаётся доступен.'; }
+});
+loadCfg();
 </script>
 </body>
 </html>
